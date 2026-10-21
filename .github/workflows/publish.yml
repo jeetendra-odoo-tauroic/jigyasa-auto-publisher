@@ -1,0 +1,14 @@
+
+name: Jigyasa Auto Publisher
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 5 * * *"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test scheduled workflow
+        run: echo "Jigyasa workflow is running successfully."
