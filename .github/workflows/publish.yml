@@ -1,4 +1,4 @@
-name: AI Social Post Publisher
+name: Facebook Scheduled Publisher
 
 on:
   schedule:
@@ -8,25 +8,22 @@ on:
     - cron: "30 4 * * *"
     # 1:30 PM IST
     - cron: "0 8 * * *"
-    # Temporary test slot: 4:10 PM IST
-    - cron: "40 10 * * *"
     # 8:30 PM IST
     - cron: "0 15 * * *"
   workflow_dispatch:
     inputs:
       slot:
-        description: "Post slot to generate and publish"
+        description: "Prepared post slot to publish"
         required: true
         type: choice
         options:
           - "07:00"
           - "10:00"
           - "13:30"
-          - "16:10"
           - "20:30"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   publish:
@@ -40,13 +37,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install image fonts
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y fonts-noto-core
-
       - name: Install dependencies
-        run: pip install requests Pillow
+        run: pip install requests
 
       - name: Determine posting slot
         id: slot
@@ -57,49 +49,21 @@ jobs:
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             SLOT="$INPUT_SLOT"
-          elif [ "$EVENT_NAME" = "push" ]; then
-            SLOT="16:10"
           else
             case "$SCHEDULE" in
               "30 1 * * *") SLOT="07:00" ;;
               "30 4 * * *") SLOT="10:00" ;;
               "0 8 * * *") SLOT="13:30" ;;
-              "40 10 * * *") SLOT="16:10" ;;
               "0 15 * * *") SLOT="20:30" ;;
-              *) echo "Unknown schedule"; exit 1 ;;
+              *) echo "Unknown schedule: $SCHEDULE"; exit 1 ;;
             esac
           fi
           echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
 
-      - name: Generate today's Hindi quote graphic and caption
-        env:
-          POST_SLOT: ${{ steps.slot.outputs.slot }}
-          BRAND_NAME: ${{ vars.BRAND_NAME }}
-          CONTENT_NICHE: ${{ vars.CONTENT_NICHE }}
-          POST_LANGUAGE: ${{ vars.POST_LANGUAGE }}
-          TARGET_AUDIENCE: ${{ vars.TARGET_AUDIENCE }}
-        run: python generate_post.py --slot "$POST_SLOT"
-
-      - name: Commit generated image and post metadata
-        env:
-          POST_SLOT: ${{ steps.slot.outputs.slot }}
-        run: |
-          TODAY="$(TZ=Asia/Kolkata date +%F)"
-          FILE_SLOT="${POST_SLOT//:/-}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "content/$TODAY/$FILE_SLOT.jpg" "content/$TODAY/$FILE_SLOT.json"
-          if git diff --cached --quiet; then
-            echo "No generated content changes to commit."
-          else
-            git commit -m "Add generated post for $TODAY $POST_SLOT"
-            git push
-          fi
-
-      - name: Publish generated image to Facebook
+      - name: Publish prepared image to Facebook
         env:
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
-          FACEBOOK_GRAPH_API_VERSION: v23.0
+          FACEBOOK_GRAPH_API_VERSION: ${{ vars.FACEBOOK_GRAPH_API_VERSION || 'v23.0' }}
           POST_SLOT: ${{ steps.slot.outputs.slot }}
         run: python publish.py
