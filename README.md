@@ -23,7 +23,7 @@ Each run:
 
 In **Settings → Secrets and variables → Actions**, configure:
 - `FACEBOOK_PAGE_ID`: the Facebook Page ID.
-- `FACEBOOK_PAGE_ACCESS_TOKEN`: a valid Page access token with the required publishing permissions.
+- `FACEBOOK_PAGE_ACCESS_TOKEN`: a valid Page access token with the required publishing permissions.\n- `POLLINATIONS_API_KEY`: optional Pollinations API key for AI-generated backgrounds.
 
 Never put tokens in source files or commit them to the repository.
 
