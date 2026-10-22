@@ -1,38 +1,40 @@
 # Jigyasa Auto Publisher
 
-Automatically creates and publishes Hindi science/knowledge image cards to the Jigyasa Facebook Page four times per day.
+Automatically creates and publishes Hindi science/knowledge posts to the Jigyasa Facebook Page using GitHub Actions.
 
 ## What runs automatically
 
-GitHub Actions runs at **7:00 AM, 10:00 AM, 1:30 PM and 8:30 PM India time** (UTC cron equivalents are in `.github/workflows/publish.yml`).
+The workflow schedules posts at 7:00 AM, 10:00 AM, 1:30 PM, and 8:30 PM India time, plus a temporary 4:10 PM test slot configured in `.github/workflows/publish.yml`.
 
 Each run:
-1. Selects one fact from the curated offline fact bank in `generate_post.py`.
-2. Creates a 1080×1350 PNG image and a caption JSON under `content/YYYY-MM-DD/`.
-3. Publishes the image and caption using Facebook Graph API via `publish.py`.
+1. Selects a fact from the curated fact bank in `generate_post.py`.
+2. If `POLLINATIONS_API_KEY` is configured, attempts to generate a rich AI illustration using Pollinations' `flux` image model.
+3. Overlays the Hindi fact and Jigyasa branding, then saves a 1080×1350 JPG and caption JSON under `content/YYYY-MM-DD/`.
+4. Publishes the JPG and caption using Facebook Graph API via `publish.py`.
 
-## Cost and limitations
+## AI image provider: Pollinations
 
-- No paid AI API is called. Generation uses Python and Pillow to render a designed image card from the local curated fact bank.
-- **This does not call ChatGPT's built-in image generator**, and it does not create a new AI illustration. The image is a text-led graphic card.
-- The fact bank is finite. Add and fact-check new entries in `FACTS` in `generate_post.py` periodically to keep topics fresh and reduce repetition.
-- GitHub Actions is cloud-hosted; no personal computer needs to remain on.
-- Scheduled workflows can be delayed by GitHub and are not a guaranteed exact-minute delivery service.
+- Create an API key at [enter.pollinations.ai](https://enter.pollinations.ai/) and save it as the GitHub Actions secret `POLLINATIONS_API_KEY`.
+- The workflow uses the `flux` model. The API reference we checked listed it at **0.001 Pollen per image**, but prices, free credits, model availability, and rate limits can change. Check your current account balance and the [Pollinations API documentation](https://gen.pollinations.ai/docs) before enabling it.
+- This is a **free-tier / credit-based option, not a guarantee of unlimited free generation**. Do not add a payment method or buy credits unless you explicitly choose to.
+- If the key is missing, generation fails, or the provider returns an error (including insufficient balance), the script falls back to its local Pillow background and still creates a JPG. A fallback post will not have an AI-generated illustration.
+- This calls Pollinations, not ChatGPT's built-in image generator.
 
 ## Required GitHub Actions secrets
 
 In **Settings → Secrets and variables → Actions**, configure:
-- `FACEBOOK_PAGE_ID`: the Facebook Page ID.
-- `FACEBOOK_PAGE_ACCESS_TOKEN`: a valid Page access token with the required publishing permissions.\n- `POLLINATIONS_API_KEY`: optional Pollinations API key for AI-generated backgrounds.
+- `FACEBOOK_PAGE_ID`: Facebook Page ID.
+- `FACEBOOK_PAGE_ACCESS_TOKEN`: valid Page access token with the required publishing permissions.
+- `POLLINATIONS_API_KEY`: optional key for AI-generated backgrounds.
 
 Never put tokens in source files or commit them to the repository.
 
 ## Test manually
 
-Open **Actions → Jigyasa Facebook Image Publisher → Run workflow**, choose a slot and run it. This will **publish a real post** to the configured Facebook Page; use only when you are ready to publish.
+Open **Actions → Jigyasa Facebook Image Publisher → Run workflow**, choose a slot and run it. This publishes a real post to the configured Facebook Page, so use it only when you are ready to publish.
 
 ## Files
 
-- `generate_post.py`: offline fact selection and image-card generation.
+- `generate_post.py`: fact selection, optional AI background generation, and JPG creation.
 - `publish.py`: Facebook Graph API photo publishing.
 - `.github/workflows/publish.yml`: scheduled generation and publishing workflow.
