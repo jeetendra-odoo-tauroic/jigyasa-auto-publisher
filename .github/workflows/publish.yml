@@ -82,7 +82,12 @@ jobs:
                       print("Post ID:", result.get("post_id", ""))
                   else:
                       raise RuntimeError("Facebook response did not confirm publication.")
+          except urllib.error.HTTPError as error:
+                      print("Facebook API status:", error.code)
+                      print("Facebook API response:")
+                      print(error.read().decode("utf-8", errors="replace"))
+                      raise
           except Exception as error:
-              print("Facebook publishing failed. Check the workflow logs.")
-              raise error
+                      print("Publishing failed:", str(error))
+                      raise
           PY
