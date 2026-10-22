@@ -143,14 +143,14 @@ One post for each slot, exactly: {slots_text}. Return only a valid JSON array.
 Each object must contain: slot, topic, title, quote, subquote, caption, hashtags, visual_style.
 Rules:
 - Use natural, correct Hindi in Devanagari. Avoid repeated themes or wording across the four posts.
-- quote should be a short emotionally resonant line, suitable for a graphic, with at most two lines separated by \\n.
-- subquote should add a meaningful second thought, at most two lines separated by \\n.
+- quote should be a short emotionally resonant line, suitable for a graphic, with at most two lines separated by \n.
+- subquote should add a meaningful second thought, at most two lines separated by \n.
 - title should be short. caption should be ready to publish and invite genuine comments without engagement bait.
 - hashtags must be a string of 4-8 relevant hashtags, including #Jigyasa.
 - visual_style should be a short description of a color palette/mood for a text graphic.
 - Avoid fabricated statistics, current-affairs claims, medical/financial advice, hate, and political misinformation.
 - Do not include markdown fences or any extra text.
-JSON example shape: [{{"slot":"07:00","topic":"जीवन","title":"...","quote":"...\\n...","subquote":"...\\n...","caption":"...","hashtags":"#... #Jigyasa","visual_style":"warm sunrise palette"}}]"""
+JSON example shape: [{{"slot":"07:00","topic":"जीवन","title":"...","quote":"...\n...","subquote":"...\n...","caption":"...","hashtags":"#... #Jigyasa","visual_style":"warm sunrise palette"}}]"""
     response = requests.post(
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
         headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
@@ -194,7 +194,7 @@ def save_post(post, day, slot):
         "target_audience": AUDIENCE,
         "generator": "gemini-2.5-flash+pillow",
     })
-    post["caption"] = post["caption"].strip() + "\\n\\n" + post["hashtags"].strip()
+    post["caption"] = post["caption"].strip() + "\n\n" + post["hashtags"].strip()
     folder = ROOT / "content" / day
     folder.mkdir(parents=True, exist_ok=True)
     slot_name = slot.replace(":", "-")
@@ -205,7 +205,7 @@ def save_post(post, day, slot):
         raise RuntimeError(f"Generated image is missing or unexpectedly small: {image_rel}")
     post["image"] = image_rel
     (folder / f"{slot_name}.json").write_text(
-        json.dumps(post, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8"
+        json.dumps(post, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     print(f"Created: {image_rel} | {post['title']}")
 
