@@ -2,7 +2,12 @@
 """Create a free Hindi knowledge-card image for Jigyasa using Pillow."""
 import argparse
 import json
+import os
 import random
+from io import BytesIO
+from urllib.parse import quote
+
+import requests
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -75,17 +80,57 @@ def draw_wrapped(draw, text, xy, fnt, fill, max_width, line_height):
         y += line_height
     return y
 
+def make_ai_background(fact, seed):
+    """Try Pollinations' image API; only spend the account's available pollen."""
+    api_key = os.environ.get("POLLINATIONS_API_KEY", "").strip()
+    if not api_key:
+        return None
+
+    prompt = (
+        "Premium editorial science-education illustration. Subject: " + fact["topic"] +
+        ", concept: " + fact["title"] + ". Visually rich, cinematic lighting, "
+        "intricate details, sophisticated deep navy and teal palette with warm "
+        "golden highlights, polished magazine art direction, portrait 4:5 composition. "
+        "Keep central-left area dark and uncluttered for Hindi text overlay. "
+        "No words, letters, typography, logos, or watermark."
+    )
+    url = "https://gen.pollinations.ai/image/" + quote(prompt, safe="")
+    try:
+        response = requests.get(
+            url,
+            params={"model": "zimage", "width": 1024, "height": 1280, "seed": seed},
+            headers={"Authorization": f"Bearer {api_key}", "Accept": "image/*"},
+            timeout=90,
+        )
+        response.raise_for_status()
+        candidate = Image.open(BytesIO(response.content)).convert("RGB")
+        scale = max(W / candidate.width, H / candidate.height)
+        candidate = candidate.resize(
+            (int(candidate.width * scale), int(candidate.height * scale)),
+            Image.Resampling.LANCZOS,
+        )
+        left = (candidate.width - W) // 2
+        top = (candidate.height - H) // 2
+        print("AI background generated with Pollinations (zimage).")
+        return candidate.crop((left, top, left + W, top + H))
+    except Exception as exc:
+        print(f"AI generation unavailable; using local background ({type(exc).__name__}).")
+        return None
+
+
 def render(fact, output, seed):
     rng = random.Random(seed)
     c1, c2 = rng.choice(PALETTES)
-    im = Image.new("RGB", (W, H))
-    pix = im.load()
-    for y in range(H):
-        t = y / (H - 1)
-        for x in range(W):
-            dx, dy = (x - W*.78)/(W*.95), (y-H*.18)/(H*.65)
-            glow = max(0, 1 - (dx*dx + dy*dy)**.5)
-            pix[x, y] = tuple(min(255, int(c1[i]*(1-t)+c2[i]*t + glow*12)) for i in range(3))
+    im = make_ai_background(fact, seed)
+    if im is None:
+        im = Image.new("RGB", (W, H))
+        pix = im.load()
+        for y in range(H):
+            t = y / (H - 1)
+            for x in range(W):
+                dx, dy = (x - W*.78)/(W*.95), (y-H*.18)/(H*.65)
+                glow = max(0, 1 - (dx*dx + dy*dy)**.5)
+                pix[x, y] = tuple(min(255, int(c1[i]*(1-t)+c2[i]*t + glow*12)) for i in range(3))
     d = ImageDraw.Draw(im)
     # Header is high contrast: no white-on-white logo pill.
     d.rounded_rectangle((64, 62, 490, 136), radius=28, fill=(7, 20, 48), outline=(255, 225, 150), width=2)
@@ -103,7 +148,7 @@ def render(fact, output, seed):
     d.text((100, 1190), "FOLLOW @JIGYASA", font=font(32, True, latin=True), fill=(255,225,150))
     d.text((70, 1300), "सीखें  |  सोचें  |  सवाल पूछें", font=font(23), fill=(255,255,255))
     output.parent.mkdir(parents=True, exist_ok=True)
-    im.save(output, format="PNG", optimize=True)
+    im.save(output, format="JPEG", quality=92, optimize=True, progressive=True)
 
 def main():
     parser = argparse.ArgumentParser()
