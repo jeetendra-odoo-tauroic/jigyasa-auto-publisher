@@ -71,13 +71,9 @@ jobs:
           fi
           echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
 
-      - name: Generate today's AI image and caption
+      - name: Generate today's Hindi quote graphic and caption
         env:
           POST_SLOT: ${{ steps.slot.outputs.slot }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_TEXT_MODEL: ${{ vars.OPENAI_TEXT_MODEL }}
-          OPENAI_IMAGE_MODEL: ${{ vars.OPENAI_IMAGE_MODEL }}
-          OPENAI_IMAGE_QUALITY: ${{ vars.OPENAI_IMAGE_QUALITY }}
           BRAND_NAME: ${{ vars.BRAND_NAME }}
           CONTENT_NICHE: ${{ vars.CONTENT_NICHE }}
           POST_LANGUAGE: ${{ vars.POST_LANGUAGE }}
