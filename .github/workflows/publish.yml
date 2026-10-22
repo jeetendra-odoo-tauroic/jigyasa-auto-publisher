@@ -77,9 +77,10 @@ jobs:
           fi
           echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
 
-      - name: Generate today's image and caption
+      - name: Generate today's AI image and caption
         env:
           POST_SLOT: ${{ steps.slot.outputs.slot }}
+          POLLINATIONS_API_KEY: ${{ secrets.POLLINATIONS_API_KEY }}
         run: python generate_post.py --slot "$POST_SLOT"
 
       - name: Publish generated image to Facebook
