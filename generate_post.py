@@ -151,35 +151,40 @@ Rules:
 - Avoid fabricated statistics, current-affairs claims, medical/financial advice, hate, and political misinformation.
 - Do not include markdown fences or any extra text.
 JSON example shape: [{{"slot":"07:00","topic":"जीवन","title":"...","quote":"...\n...","subquote":"...\n...","caption":"...","hashtags":"#... #Jigyasa","visual_style":"warm sunrise palette"}}]"""
-    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"responseMimeType": "application/json", "temperature": 0.9},
+        "generationConfig": {"responseMimeType": "application/json", "temperature": 0.8},
     }
     response = None
-    for attempt in range(4):
-        try:
-            response = requests.post(
-                endpoint,
-                headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
-                json=payload,
-                timeout=90,
-            )
-        except requests.RequestException as exc:
-            if attempt == 3:
-                raise RuntimeError(f"Gemini network request failed after retries: {exc}") from exc
+    errors = []
+    # Use the preferred model first, then a lighter stable fallback if it is overloaded.
+    for model in ("gemini-3.8-flash", "gemini-3.5-flash-lite"):
+        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        for attempt in range(2):
+            try:
+                candidate = requests.post(
+                    endpoint,
+                    headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
+                    json=payload,
+                    timeout=(10, 45),
+                )
+            except requests.RequestException as exc:
+                errors.append(f"{model} attempt {attempt + 1}: {exc}")
+                continue
+            if candidate.ok:
+                response = candidate
+                print(f"Gemini model used: {model}")
+                break
+            errors.append(f"{model} HTTP {candidate.status_code}: {candidate.text[:250]}")
+            if candidate.status_code not in (408, 429, 500, 502, 503, 504):
+                break
             import time
-            time.sleep(2 ** attempt)
-            continue
-        if response.status_code not in (429, 500, 502, 503, 504):
+            if attempt == 0:
+                time.sleep(2)
+        if response is not None:
             break
-        if attempt < 3:
-            import time
-            time.sleep(2 ** (attempt + 1))
     if response is None:
-        raise RuntimeError("Gemini request did not return a response.")
-    if not response.ok:
-        raise RuntimeError(f"Gemini API returned HTTP {response.status_code} after retries: {response.text[:500]}")
+        raise RuntimeError("All Gemini model attempts failed. " + " | ".join(errors[-4:]))
     data = response.json()
     try:
         raw = data["candidates"][0]["content"]["parts"][0]["text"]
