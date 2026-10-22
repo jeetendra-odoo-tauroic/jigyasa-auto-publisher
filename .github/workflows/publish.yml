@@ -10,8 +10,8 @@ on:
     - cron: "0 8 * * *"
     # Temporary test slot: 4:10 PM IST
     - cron: "40 10 * * *"
-    # One-time intended run: 8:50 PM IST on 22 Oct 2026 (guarded below)
-    - cron: "20 15 22 10 *"
+    # 8:30 PM IST
+    - cron: "0 15 * * *"
   workflow_dispatch:
     inputs:
       slot:
@@ -55,10 +55,6 @@ jobs:
           INPUT_SLOT: ${{ inputs.slot }}
           SCHEDULE: ${{ github.event.schedule }}
         run: |
-          if [ "$EVENT_NAME" = "schedule" ] && [ "$SCHEDULE" = "20 15 22 10 *" ] && [ "$(date -u +%F)" != "2026-10-22" ]; then
-            echo "One-time post trigger is only valid on 2026-10-22; skipping."
-            exit 0
-          fi
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             SLOT="$INPUT_SLOT"
           elif [ "$EVENT_NAME" = "push" ]; then
@@ -69,7 +65,7 @@ jobs:
               "30 4 * * *") SLOT="10:00" ;;
               "0 8 * * *") SLOT="13:30" ;;
               "40 10 * * *") SLOT="16:10" ;;
-              "20 15 22 10 *") SLOT="20:30" ;;
+              "0 15 * * *") SLOT="20:30" ;;
               *) echo "Unknown schedule"; exit 1 ;;
             esac
           fi
@@ -78,7 +74,14 @@ jobs:
       - name: Generate today's AI image and caption
         env:
           POST_SLOT: ${{ steps.slot.outputs.slot }}
-          POLLINATIONS_API_KEY: ${{ secrets.POLLINATIONS_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_TEXT_MODEL: ${{ vars.OPENAI_TEXT_MODEL }}
+          OPENAI_IMAGE_MODEL: ${{ vars.OPENAI_IMAGE_MODEL }}
+          OPENAI_IMAGE_QUALITY: ${{ vars.OPENAI_IMAGE_QUALITY }}
+          BRAND_NAME: ${{ vars.BRAND_NAME }}
+          CONTENT_NICHE: ${{ vars.CONTENT_NICHE }}
+          POST_LANGUAGE: ${{ vars.POST_LANGUAGE }}
+          TARGET_AUDIENCE: ${{ vars.TARGET_AUDIENCE }}
         run: python generate_post.py --slot "$POST_SLOT"
 
       - name: Commit generated image and post metadata
