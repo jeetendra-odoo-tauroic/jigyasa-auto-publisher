@@ -6,9 +6,79 @@ on:
   schedule:
     - cron: "30 5 * * *"
 
+permissions:
+  contents: read
+
 jobs:
-  test:
+  publish-test:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Test scheduled workflow
-        run: echo "Jigyasa workflow is running successfully."
+      - name: Create test image
+        run: |
+          python - <<'PY'
+          from PIL import Image, ImageDraw
+          image = Image.new("RGB", (1080, 1080), "#10243A")
+          draw = ImageDraw.Draw(image)
+          draw.text((340, 450), "JIGYASA", fill="white", stroke_width=1)
+          draw.text((300, 510), "AUTOMATION TEST", fill="#F5C451")
+          image.save("jigyasa-test.jpg", quality=90)
+          PY
+
+      - name: Publish test photo to Facebook
+        env:
+          PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          import urllib.request
+          import urllib.parse
+          import json
+
+          page_id = os.environ["PAGE_ID"]
+          token = os.environ["PAGE_TOKEN"]
+
+          url = f"https://graph.facebook.com/v23.0/{page_id}/photos"
+
+          with open("jigyasa-test.jpg", "rb") as image:
+              boundary = "----JigyasaBoundary123"
+              fields = {
+                  "caption": "Jigyasa automation test — कृपया इस टेस्ट पोस्ट को अनदेखा करें।",
+                  "access_token": token
+              }
+
+              body = b""
+              for key, value in fields.items():
+                  body += f"--{boundary}\r\n".encode()
+                  body += f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode()
+                  body += value.encode()
+                  body += b"\r\n"
+
+              body += f"--{boundary}\r\n".encode()
+              body += b'Content-Disposition: form-data; name="source"; filename="jigyasa-test.jpg"\r\n'
+              body += b"Content-Type: image/jpeg\r\n\r\n"
+              body += image.read()
+              body += b"\r\n"
+              body += f"--{boundary}--\r\n".encode()
+
+          request = urllib.request.Request(
+              url,
+              data=body,
+              headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+              method="POST"
+          )
+
+          try:
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  result = json.loads(response.read().decode())
+                  if result.get("id") or result.get("post_id"):
+                      print("Facebook test photo published successfully.")
+                      print("Photo ID:", result.get("id", ""))
+                      print("Post ID:", result.get("post_id", ""))
+                  else:
+                      raise RuntimeError("Facebook response did not confirm publication.")
+          except Exception as error:
+              print("Facebook publishing failed. Check the workflow logs.")
+              raise error
+          PY
