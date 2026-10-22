@@ -18,7 +18,7 @@ API_VERSION = os.environ.get(
 ).strip()
 SLOT = os.environ.get("POST_SLOT", "").strip()
 
-VALID_SLOTS = {"07:00", "10:00", "13:30", "20:30"}
+VALID_SLOTS = {"07:00", "10:00", "13:30", "16:10", "20:30"}
 
 
 def fail(message):
