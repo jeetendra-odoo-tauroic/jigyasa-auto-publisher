@@ -98,7 +98,7 @@ def make_ai_background(fact, seed):
     try:
         response = requests.get(
             url,
-            params={"model": "zimage", "width": 1024, "height": 1280, "seed": seed},
+            params={"model": "flux", "width": 1024, "height": 1280, "seed": seed},
             headers={"Authorization": f"Bearer {api_key}", "Accept": "image/*"},
             timeout=90,
         )
@@ -111,7 +111,7 @@ def make_ai_background(fact, seed):
         )
         left = (candidate.width - W) // 2
         top = (candidate.height - H) // 2
-        print("AI background generated with Pollinations (zimage).")
+        print("AI background generated with Pollinations (flux).")
         return candidate.crop((left, top, left + W, top + H))
     except Exception as exc:
         print(f"AI generation unavailable; using local background ({type(exc).__name__}).")
@@ -160,7 +160,7 @@ def main():
     start = (day_number * 3) % len(FACTS)
     chosen = FACTS[(start + slot_index * 5) % len(FACTS)]
     out_dir = ROOT / "content" / today
-    image_rel = f"content/{today}/{args.slot.replace(':','-')}.png"
+    image_rel = f"content/{today}/{args.slot.replace(':','-')}.jpg"
     image_path = ROOT / image_rel
     render(chosen, image_path, day_number * 10 + slot_index)
     post = {"caption": chosen["caption"], "image": image_rel, "topic": chosen["topic"], "title": chosen["title"], "date": today, "slot": args.slot}
