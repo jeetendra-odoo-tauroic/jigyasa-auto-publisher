@@ -1,6 +1,12 @@
 name: Jigyasa Facebook Image Publisher
 
 on:
+  # One-time end-to-end test: changing this workflow on main triggers a publish.
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/publish.yml"
   schedule:
     # 7:00 AM IST
     - cron: "30 1 * * *"
@@ -54,6 +60,8 @@ jobs:
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             SLOT="$INPUT_SLOT"
+          elif [ "$EVENT_NAME" = "push" ]; then
+            SLOT="20:30"
           else
             case "$SCHEDULE" in
               "30 1 * * *") SLOT="07:00" ;;
