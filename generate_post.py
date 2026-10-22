@@ -151,17 +151,35 @@ Rules:
 - Avoid fabricated statistics, current-affairs claims, medical/financial advice, hate, and political misinformation.
 - Do not include markdown fences or any extra text.
 JSON example shape: [{{"slot":"07:00","topic":"जीवन","title":"...","quote":"...\n...","subquote":"...\n...","caption":"...","hashtags":"#... #Jigyasa","visual_style":"warm sunrise palette"}}]"""
-    response = requests.post(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
-        headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
-        json={
-            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "generationConfig": {"responseMimeType": "application/json", "temperature": 0.9},
-        },
-        timeout=90,
-    )
+    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"
+    payload = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {"responseMimeType": "application/json", "temperature": 0.9},
+    }
+    response = None
+    for attempt in range(4):
+        try:
+            response = requests.post(
+                endpoint,
+                headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
+                json=payload,
+                timeout=90,
+            )
+        except requests.RequestException as exc:
+            if attempt == 3:
+                raise RuntimeError(f"Gemini network request failed after retries: {exc}") from exc
+            import time
+            time.sleep(2 ** attempt)
+            continue
+        if response.status_code not in (429, 500, 502, 503, 504):
+            break
+        if attempt < 3:
+            import time
+            time.sleep(2 ** (attempt + 1))
+    if response is None:
+        raise RuntimeError("Gemini request did not return a response.")
     if not response.ok:
-        raise RuntimeError(f"Gemini API returned HTTP {response.status_code}: {response.text[:500]}")
+        raise RuntimeError(f"Gemini API returned HTTP {response.status_code} after retries: {response.text[:500]}")
     data = response.json()
     try:
         raw = data["candidates"][0]["content"]["parts"][0]["text"]
