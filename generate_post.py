@@ -12,12 +12,12 @@ ROOT = Path(__file__).resolve().parent
 TZ = ZoneInfo(os.getenv("POST_TIMEZONE", "Asia/Kolkata"))
 SLOTS = ["07:00", "10:00", "13:30", "16:10", "20:30"]
 KEY = os.getenv("OPENAI_API_KEY", "").strip()
-TEXT_MODEL = os.getenv("OPENAI_TEXT_MODEL", "gpt-4.1-mini")
-IMAGE_MODEL = os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-1")
-BRAND = os.getenv("BRAND_NAME", "Jigyasa")
-NICHE = os.getenv("CONTENT_NICHE", "Hindi educational content, science, history, technology and everyday knowledge")
-LANGUAGE = os.getenv("POST_LANGUAGE", "Hindi")
-AUDIENCE = os.getenv("TARGET_AUDIENCE", "general audience in India")
+TEXT_MODEL = (os.getenv("OPENAI_TEXT_MODEL") or "gpt-4.1-mini")
+IMAGE_MODEL = (os.getenv("OPENAI_IMAGE_MODEL") or "gpt-image-1")
+BRAND = (os.getenv("BRAND_NAME") or "Jigyasa")
+NICHE = (os.getenv("CONTENT_NICHE") or "Hindi educational content, science, history, technology and everyday knowledge")
+LANGUAGE = (os.getenv("POST_LANGUAGE") or "Hindi")
+AUDIENCE = (os.getenv("TARGET_AUDIENCE") or "general audience in India")
 
 def api(endpoint, payload, timeout=240):
     try:
@@ -59,7 +59,7 @@ with clear composition and no text, letters, logos or watermark. Portrait social
         sys.exit("Invalid post JSON: " + str(e))
     post["caption"] = post["caption"].strip() + "\n\n" + post["hashtags"].strip()
     img = api("images/generations", {"model":IMAGE_MODEL,"prompt":post["image_prompt"],
-        "size":"1024x1536","quality":os.getenv("OPENAI_IMAGE_QUALITY","medium"),
+        "size":"1024x1536","quality":(os.getenv("OPENAI_IMAGE_QUALITY") or "medium"),
         "output_format":"jpeg"}, timeout=300)
     try:
         raw = base64.b64decode(img["data"][0]["b64_json"])
