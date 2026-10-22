@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#071b3d"/>
+      <stop offset="100%" stop-color="#087f8c"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop offset="0%" stop-color="#4dd0c8" stop-opacity=".45"/>
+      <stop offset="100%" stop-color="#4dd0c8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg)"/>
+  <circle cx="780" cy="390" r="380" fill="url(#glow)"/>
+  <circle cx="780" cy="390" r="205" fill="#0a3554" stroke="#8ce5db" stroke-width="5"/>
+  <path d="M650 330 C620 250 680 210 720 270 C750 180 820 220 810 290 C890 230 930 300 870 350 C950 390 900 450 840 425 C860 510 790 540 760 460 C720 530 650 490 690 430 C610 460 570 400 650 370Z" fill="#ffb66b" stroke="#ffe1a8" stroke-width="8" stroke-linejoin="round"/>
+  <circle cx="740" cy="350" r="13" fill="#fff4d6"/><circle cx="790" cy="350" r="13" fill="#fff4d6"/>
+  <circle cx="742" cy="350" r="5" fill="#071b3d"/><circle cx="792" cy="350" r="5" fill="#071b3d"/>
+  <rect x="66" y="62" width="310" height="70" rx="28" fill="#06142e" stroke="#ffdb91" stroke-width="2"/>
+  <text x="94" y="108" font-family="sans-serif" font-size="34" font-weight="700" fill="#ffdb91">JIGYASA</text>
+  <text x="68" y="650" font-family="sans-serif" font-size="30" font-weight="700" fill="#ffdb91">समुद्र की अद्भुत दुनिया</text>
+  <text x="68" y="735" font-family="sans-serif" font-size="64" font-weight="700" fill="#ffffff">ऑक्टोपस के</text>
+  <text x="68" y="815" font-family="sans-serif" font-size="64" font-weight="700" fill="#ffffff">तीन दिल होते हैं!</text>
+  <rect x="68" y="865" width="944" height="5" rx="3" fill="#8ce5db"/>
+  <text x="70" y="940" font-family="sans-serif" font-size="34" fill="#f4fbff">और उसका खून नीला दिखाई देता है।</text>
+  <rect x="68" y="1080" width="944" height="150" rx="30" fill="#06142e" stroke="#ffdb91" stroke-width="2"/>
+  <text x="105" y="1140" font-family="sans-serif" font-size="28" fill="#ffffff">ऐसी और रोचक बातें जानने के लिए</text>
+  <text x="105" y="1195" font-family="sans-serif" font-size="34" font-weight="700" fill="#ffdb91">FOLLOW JIGYASA</text>
+  <text x="68" y="1300" font-family="sans-serif" font-size="24" fill="#ffffff">सीखें  •  सोचें  •  सवाल पूछें</text>
+</svg>
