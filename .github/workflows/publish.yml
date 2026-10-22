@@ -1,68 +1,70 @@
 
-name: Jigyasa Facebook Text Test
+name: Jigyasa Facebook Image Publisher
 
 on:
+  schedule:
+    # 7:00 AM IST
+    - cron: "30 1 * * *"
+    # 10:00 AM IST
+    - cron: "30 4 * * *"
+    # 1:30 PM IST
+    - cron: "0 8 * * *"
+    # 8:30 PM IST
+    - cron: "0 15 * * *"
   workflow_dispatch:
+    inputs:
+      slot:
+        description: "Post slot to publish"
+        required: true
+        type: choice
+        options:
+          - "07:00"
+          - "10:00"
+          - "13:30"
+          - "20:30"
 
 permissions:
   contents: read
 
 jobs:
-  publish-text-test:
+  publish:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Publish test text to Facebook Page
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Determine posting slot
+        id: slot
         env:
-          PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
-          PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_SLOT: ${{ inputs.slot }}
+          SCHEDULE: ${{ github.event.schedule }}
         run: |
-          python - <<'PY'
-          import os
-          import json
-          import urllib.request
-          import urllib.error
-          import urllib.parse
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            SLOT="$INPUT_SLOT"
+          else
+            case "$SCHEDULE" in
+              "30 1 * * *") SLOT="07:00" ;;
+              "30 4 * * *") SLOT="10:00" ;;
+              "0 8 * * *") SLOT="13:30" ;;
+              "0 15 * * *") SLOT="20:30" ;;
+              *) echo "Unknown schedule"; exit 1 ;;
+            esac
+          fi
+          echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
 
-          page_id = os.environ["PAGE_ID"]
-          token = os.environ["PAGE_TOKEN"]
-
-          url = f"https://graph.facebook.com/v23.0/{page_id}/feed"
-
-          data = urllib.parse.urlencode({
-              "message": (
-                  "Jigyasa automation test. "
-                  "Yeh ek test post hai—kripya ise ignore karein."
-              ),
-              "access_token": token
-          }).encode("utf-8")
-
-          request = urllib.request.Request(
-              url,
-              data=data,
-              method="POST"
-          )
-
-          try:
-              with urllib.request.urlopen(request, timeout=60) as response:
-                  result = json.loads(
-                      response.read().decode("utf-8")
-                  )
-
-              if result.get("id"):
-                  print("SUCCESS: Facebook text post published.")
-                  print("Post ID:", result["id"])
-              else:
-                  print("Unexpected Facebook response.")
-                  print(json.dumps(result))
-
-          except urllib.error.HTTPError as error:
-              print("Facebook API status:", error.code)
-              print("Facebook API response:")
-              print(
-                  error.read().decode(
-                      "utf-8", errors="replace"
-                  )
-              )
-              raise
-          PY
+      - name: Publish image to Facebook
+        env:
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+          FACEBOOK_GRAPH_API_VERSION: v23.0
+          POST_SLOT: ${{ steps.slot.outputs.slot }}
+        run: python publish.py
