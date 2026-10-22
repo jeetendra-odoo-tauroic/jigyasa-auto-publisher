@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Create a daily Jigyasa Hindi science fact card without paid APIs.
-
-This is a deterministic, offline content generator. It uses a curated fact bank
-and Pillow to render a social image; it does not call ChatGPT or an image AI API.
-"""
+"""Create a free Hindi knowledge-card image for Jigyasa using Pillow."""
 import argparse
 import json
 import random
@@ -18,25 +14,23 @@ TZ = ZoneInfo("Asia/Kolkata")
 W, H = 1080, 1350
 SLOTS = ["07:00", "10:00", "13:30", "20:30"]
 
-# Curated evergreen facts. Each entry contains a short visual headline,
-# explanatory copy, caption, and category. Add new entries to keep the rotation fresh.
 FACTS = [
- {"topic":"मानव शरीर","title":"आपका दिल एक दिन में","body":"लगभग 1 लाख बार धड़कता है।\nयह लगातार शरीर तक खून पहुँचाता है।","caption":"क्या आपको पता था? ❤️ हमारा दिल बिना रुके दिन-रात काम करता है। ऐसी ही विज्ञान की रोचक बातें जानने के लिए Jigyasa को फॉलो करें। #Jigyasa #HumanBody #ScienceFacts"},
- {"topic":"दिमाग","title":"दिमाग और नींद","body":"नींद के दौरान भी दिमाग सक्रिय रहता है।\nयह यादों को व्यवस्थित करने में मदद करता है।","caption":"सोते समय भी दिमाग अपना काम करता रहता है! 🧠 नींद सीखने और याददाश्त के लिए अहम है। #Jigyasa #BrainFacts #HindiFacts"},
- {"topic":"अंतरिक्ष","title":"अंतरिक्ष में आवाज़?","body":"ध्वनि को फैलने के लिए माध्यम चाहिए।\nखाली अंतरिक्ष में आवाज़ सामान्य तरह नहीं चलती।","caption":"अंतरिक्ष फिल्मों जैसा नहीं होता! 🚀 ध्वनि को हवा या किसी माध्यम की जरूरत होती है। #Jigyasa #SpaceFacts #Science"},
- {"topic":"पौधे","title":"पौधे भी करते हैं भोजन","body":"प्रकाश संश्लेषण में पौधे रोशनी की मदद से\nपानी और कार्बन डाइऑक्साइड से भोजन बनाते हैं।","caption":"हरे पौधे प्रकृति की कमाल की रसोई हैं 🌿 वे प्रकाश संश्लेषण से अपना भोजन बनाते हैं। #Jigyasa #Nature #ScienceFacts"},
- {"topic":"जानवर","title":"ऑक्टोपस की खासियत","body":"ऑक्टोपस के तीन दिल होते हैं।\nउसका खून नीला दिखाई देता है।","caption":"समुद्र की दुनिया कितनी अद्भुत है! 🐙 ऑक्टोपस के तीन दिल होते हैं। #Jigyasa #AnimalFacts #Ocean"},
+ {"topic":"मानव शरीर","title":"आपका दिल एक दिन में","body":"लगभग 1 लाख बार धड़कता है।\nयह लगातार शरीर तक खून पहुँचाता है।","caption":"क्या आपको पता था? हमारा दिल बिना रुके दिन-रात काम करता है। ऐसी ही विज्ञान की रोचक बातें जानने के लिए Jigyasa को फॉलो करें। #Jigyasa #HumanBody #ScienceFacts"},
+ {"topic":"दिमाग","title":"दिमाग और नींद","body":"नींद के दौरान भी दिमाग सक्रिय रहता है।\nयह यादों को व्यवस्थित करने में मदद करता है।","caption":"सोते समय भी दिमाग अपना काम करता रहता है! नींद सीखने और याददाश्त के लिए अहम है। #Jigyasa #BrainFacts #HindiFacts"},
+ {"topic":"अंतरिक्ष","title":"अंतरिक्ष में आवाज़?","body":"ध्वनि को फैलने के लिए माध्यम चाहिए।\nखाली अंतरिक्ष में आवाज़ सामान्य तरह नहीं चलती।","caption":"अंतरिक्ष फिल्मों जैसा नहीं होता! ध्वनि को हवा या किसी माध्यम की जरूरत होती है। #Jigyasa #SpaceFacts #Science"},
+ {"topic":"पौधे","title":"पौधे भी करते हैं भोजन","body":"प्रकाश संश्लेषण में पौधे रोशनी की मदद से\nपानी और कार्बन डाइऑक्साइड से भोजन बनाते हैं।","caption":"हरे पौधे प्रकृति की कमाल की रसोई हैं। वे प्रकाश संश्लेषण से अपना भोजन बनाते हैं। #Jigyasa #Nature #ScienceFacts"},
+ {"topic":"जानवर","title":"ऑक्टोपस की खासियत","body":"ऑक्टोपस के तीन दिल होते हैं।\nउसका खून नीला दिखाई देता है।","caption":"समुद्र की दुनिया कितनी अद्भुत है! ऑक्टोपस के तीन दिल होते हैं। #Jigyasa #AnimalFacts #Ocean"},
  {"topic":"मनोविज्ञान","title":"दिमाग ध्यान कहाँ देता है?","body":"नई या अचानक हुई चीज़ें\nअक्सर हमारा ध्यान जल्दी खींचती हैं।","caption":"हमारा ध्यान हर चीज़ पर बराबर नहीं जाता। नई और अचानक दिखने वाली चीज़ें अक्सर ध्यान खींचती हैं। #Jigyasa #Psychology #MindFacts"},
- {"topic":"भौतिकी","title":"आसमान नीला क्यों?","body":"वायुमंडल हवा के अणुओं से नीली रोशनी\nको दूसरी रंगों की तुलना में अधिक बिखेरता है।","caption":"आसमान का नीला रंग प्रकाश के बिखरने से जुड़ा है ☀️ विज्ञान रोज़मर्रा में हर जगह है। #Jigyasa #Physics #ScienceFacts"},
- {"topic":"तकनीक","title":"QR कोड कैसे काम करता है?","body":"काले-सफेद पैटर्न में जानकारी एन्कोड होती है।\nकैमरा उसे पढ़कर डेटा तक पहुँचाता है।","caption":"एक छोटा-सा QR कोड जानकारी को पैटर्न में रख सकता है 📱 #Jigyasa #Technology #DigitalIndia"},
- {"topic":"जेनेटिक्स","title":"DNA में क्या है?","body":"DNA में जीव के विकास और कामकाज से जुड़ी\nआनुवंशिक जानकारी होती है।","caption":"DNA जीवन की आनुवंशिक जानकारी सँभालने वाला अणु है 🧬 #Jigyasa #Genetics #Biology"},
- {"topic":"इतिहास","title":"कागज़ की शुरुआत","body":"कागज़ बनाने की शुरुआती तकनीक\nप्राचीन चीन में विकसित हुई थी।","caption":"कागज़ ने ज्ञान को लिखने और बाँटने का तरीका बदल दिया 📜 #Jigyasa #History #Inventions"},
- {"topic":"पृथ्वी","title":"मिट्टी में जीवन","body":"मिट्टी में बैक्टीरिया, फंगस और कई छोटे जीव\nपोषक तत्वों के चक्र में मदद करते हैं।","caption":"मिट्टी सिर्फ धूल नहीं—यह जीवन से भरा एक छोटा संसार है 🌱 #Jigyasa #Environment #Nature"},
- {"topic":"मानव शरीर","title":"त्वचा शरीर की ढाल","body":"त्वचा शरीर को बाहरी वातावरण से बचाने\nऔर तापमान नियंत्रित करने में मदद करती है।","caption":"हमारी त्वचा शरीर की सुरक्षा में अहम भूमिका निभाती है 💙 #Jigyasa #HumanBody #Biology"},
- {"topic":"पशु व्यवहार","title":"मधुमक्खियों का संदेश","body":"मधुमक्खियाँ खास तरह के नृत्य से\nदूसरी मधुमक्खियों को भोजन की दिशा बताती हैं।","caption":"मधुमक्खियों का ‘वैगल डांस’ संवाद का अद्भुत तरीका है 🐝 #Jigyasa #AnimalBehaviour #Nature"},
- {"topic":"समुद्र","title":"समुद्र का नमक","body":"समुद्र के पानी में घुले हुए लवण होते हैं।\nनदियाँ चट्टानों से खनिज बहाकर लाती हैं।","caption":"समुद्र का खारापन लंबे समय में प्राकृतिक प्रक्रियाओं से बना है 🌊 #Jigyasa #Ocean #Science"},
- {"topic":"रोज़मर्रा का विज्ञान","title":"फ्रिज खाना ठंडा कैसे रखता है?","body":"फ्रिज अंदर की गर्मी बाहर निकालता है।\nइसलिए अंदर का तापमान कम रहता है।","caption":"फ्रिज ठंड पैदा करने से ज्यादा अंदर की गर्मी बाहर निकालता है ❄️ #Jigyasa #EverydayScience #Technology"},
- {"topic":"विकास","title":"जीव बदलते रहते हैं","body":"पीढ़ियों में आबादी के आनुवंशिक गुण बदल सकते हैं।\nइसे विकास की प्रक्रिया कहते हैं।","caption":"विकास पीढ़ियों में आबादी के आनुवंशिक गुणों में बदलाव की प्रक्रिया है 🧬 #Jigyasa #Evolution #Biology"},
+ {"topic":"भौतिकी","title":"आसमान नीला क्यों?","body":"वायुमंडल हवा के अणुओं से नीली रोशनी\nदूसरे रंगों की तुलना में अधिक बिखेरता है।","caption":"आसमान का नीला रंग प्रकाश के बिखरने से जुड़ा है। विज्ञान रोज़मर्रा में हर जगह है। #Jigyasa #Physics #ScienceFacts"},
+ {"topic":"तकनीक","title":"QR कोड कैसे काम करता है?","body":"काले-सफेद पैटर्न में जानकारी एन्कोड होती है।\nकैमरा उसे पढ़कर डेटा तक पहुँचाता है।","caption":"एक छोटा-सा QR कोड जानकारी को पैटर्न में रख सकता है। #Jigyasa #Technology #DigitalIndia"},
+ {"topic":"जेनेटिक्स","title":"DNA में क्या है?","body":"DNA में जीव के विकास और कामकाज से जुड़ी\nआनुवंशिक जानकारी होती है।","caption":"DNA जीवन की आनुवंशिक जानकारी सँभालने वाला अणु है। #Jigyasa #Genetics #Biology"},
+ {"topic":"इतिहास","title":"कागज़ की शुरुआत","body":"कागज़ बनाने की शुरुआती तकनीक\nप्राचीन चीन में विकसित हुई थी।","caption":"कागज़ ने ज्ञान को लिखने और बाँटने का तरीका बदल दिया। #Jigyasa #History #Inventions"},
+ {"topic":"पृथ्वी","title":"मिट्टी में जीवन","body":"मिट्टी में बैक्टीरिया, फंगस और कई छोटे जीव\nपोषक तत्वों के चक्र में मदद करते हैं।","caption":"मिट्टी सिर्फ धूल नहीं—यह जीवन से भरा एक छोटा संसार है। #Jigyasa #Environment #Nature"},
+ {"topic":"मानव शरीर","title":"त्वचा शरीर की ढाल","body":"त्वचा शरीर को बाहरी वातावरण से बचाने\nऔर तापमान नियंत्रित करने में मदद करती है।","caption":"हमारी त्वचा शरीर की सुरक्षा में अहम भूमिका निभाती है। #Jigyasa #HumanBody #Biology"},
+ {"topic":"पशु व्यवहार","title":"मधुमक्खियों का संदेश","body":"मधुमक्खियाँ खास तरह के नृत्य से\nदूसरी मधुमक्खियों को भोजन की दिशा बताती हैं।","caption":"मधुमक्खियों का वैगल डांस संवाद का अद्भुत तरीका है। #Jigyasa #AnimalBehaviour #Nature"},
+ {"topic":"समुद्र","title":"समुद्र का नमक","body":"समुद्र के पानी में घुले हुए लवण होते हैं।\nनदियाँ चट्टानों से खनिज बहाकर लाती हैं।","caption":"समुद्र का खारापन लंबे समय में प्राकृतिक प्रक्रियाओं से बना है। #Jigyasa #Ocean #Science"},
+ {"topic":"रोज़मर्रा का विज्ञान","title":"फ्रिज खाना ठंडा कैसे रखता है?","body":"फ्रिज अंदर की गर्मी बाहर निकालता है।\nइसलिए अंदर का तापमान कम रहता है।","caption":"फ्रिज ठंड पैदा करने से ज्यादा अंदर की गर्मी बाहर निकालता है। #Jigyasa #EverydayScience #Technology"},
+ {"topic":"विकास","title":"जीव बदलते रहते हैं","body":"पीढ़ियों में आबादी के आनुवंशिक गुण बदल सकते हैं।\nइसे विकास की प्रक्रिया कहते हैं।","caption":"विकास पीढ़ियों में आबादी के आनुवंशिक गुणों में बदलाव की प्रक्रिया है। #Jigyasa #Evolution #Biology"},
 ]
 
 PALETTES = [
@@ -45,15 +39,18 @@ PALETTES = [
  ((25, 40, 95), (80, 110, 190)), ((60, 25, 75), (130, 85, 170)),
 ]
 
-def font(size, bold=False):
-    candidates = [
-        "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Bold.ttf" if bold else "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    ]
-    for p in candidates:
-        if Path(p).exists():
-            return ImageFont.truetype(p, size)
-    return ImageFont.load_default()
+def font(size, bold=False, latin=False):
+    if latin:
+        paths = ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]
+    else:
+        paths = [
+            "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Bold.ttf" if bold else "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",
+            "/usr/share/fonts/truetype/noto/NotoSansDevanagariUI-Bold.ttf" if bold else "/usr/share/fonts/truetype/noto/NotoSansDevanagariUI-Regular.ttf",
+        ]
+    for path in paths:
+        if Path(path).exists():
+            return ImageFont.truetype(path, size)
+    return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", size)
 
 def wrap(draw, text, fnt, max_width):
     lines = []
@@ -71,6 +68,13 @@ def wrap(draw, text, fnt, max_width):
             lines.append(line)
     return lines
 
+def draw_wrapped(draw, text, xy, fnt, fill, max_width, line_height):
+    x, y = xy
+    for line in wrap(draw, text, fnt, max_width):
+        draw.text((x, y), line, font=fnt, fill=fill)
+        y += line_height
+    return y
+
 def render(fact, output, seed):
     rng = random.Random(seed)
     c1, c2 = rng.choice(PALETTES)
@@ -79,32 +83,27 @@ def render(fact, output, seed):
     for y in range(H):
         t = y / (H - 1)
         for x in range(W):
-            glow = max(0, 1 - (((x - W*.78)/(W*.95))**2 + ((y-H*.18)/(H*.65))**2)**.5)
-            pix[x, y] = tuple(int(c1[i]*(1-t)+c2[i]*t + glow*12) for i in range(3))
+            dx, dy = (x - W*.78)/(W*.95), (y-H*.18)/(H*.65)
+            glow = max(0, 1 - (dx*dx + dy*dy)**.5)
+            pix[x, y] = tuple(min(255, int(c1[i]*(1-t)+c2[i]*t + glow*12)) for i in range(3))
     d = ImageDraw.Draw(im)
-    # Decorative rings
-    for r in (130, 190, 250):
-        d.ellipse((W-250-r, 170-r, W-250+r, 170+r), outline=(255,255,255,35), width=3)
-    d.rounded_rectangle((64, 66, 340, 128), radius=24, fill=(255,255,255,35))
-    d.text((88, 80), "JIGYASA  •  जानिए कुछ नया", font=font(24, True), fill="white")
-    d.text((70, 235), fact["topic"].upper(), font=font(26, True), fill=(255,225,150))
-    title_font = font(64, True)
-    y = 320
-    for line in wrap(d, fact["title"], title_font, 900):
-        d.text((68, y), line, font=title_font, fill="white", stroke_width=1, stroke_fill=(0,0,0,50))
-        y += 92
-    d.rounded_rectangle((68, y+35, 1012, y+39), radius=2, fill=(255,255,255,150))
-    body_font = font(37)
-    y += 95
-    for line in wrap(d, fact["body"], body_font, 900):
-        d.text((72, y), line, font=body_font, fill=(246,248,255))
-        y += 62
-    d.rounded_rectangle((68, 1120, 1012, 1258), radius=28, fill=(0,0,0,55), outline=(255,255,255,65), width=2)
-    d.text((100, 1150), "ऐसी और रोचक बातें के लिए", font=font(28), fill="white")
-    d.text((100, 1195), "FOLLOW  @JIGYASA", font=font(34, True), fill=(255,225,150))
-    d.text((70, 1300), "सीखें • सोचें • सवाल पूछें", font=font(22), fill=(255,255,255,210))
+    # Header is high contrast: no white-on-white logo pill.
+    d.rounded_rectangle((64, 62, 490, 136), radius=28, fill=(7, 20, 48), outline=(255, 225, 150), width=2)
+    d.text((88, 82), "JIGYASA", font=font(32, True, latin=True), fill=(255, 225, 150))
+    d.text((260, 88), "जानिए कुछ नया", font=font(24, True), fill=(255, 255, 255))
+    for r in (115, 165, 215):
+        d.ellipse((W-220-r, 185-r, W-220+r, 185+r), outline=(255,255,255,90), width=3)
+    d.text((70, 235), fact["topic"], font=font(30, True), fill=(255,225,150))
+    y = draw_wrapped(d, fact["title"], (68, 315), font(62, True), "white", 900, 84)
+    d.rounded_rectangle((68, y+28, 1012, y+33), radius=3, fill=(255,255,255,190))
+    y = draw_wrapped(d, fact["body"], (72, y+75), font(37), (246,248,255), 900, 66)
+    # Keep body clear of footer even if title wraps to multiple lines.
+    d.rounded_rectangle((68, 1110, 1012, 1260), radius=28, fill=(8, 15, 35), outline=(255,225,150), width=2)
+    d.text((100, 1140), "ऐसी और रोचक बातें के लिए", font=font(28), fill="white")
+    d.text((100, 1190), "FOLLOW @JIGYASA", font=font(32, True, latin=True), fill=(255,225,150))
+    d.text((70, 1300), "सीखें  |  सोचें  |  सवाल पूछें", font=font(23), fill=(255,255,255))
     output.parent.mkdir(parents=True, exist_ok=True)
-    im.save(output, quality=92)
+    im.save(output, format="PNG", optimize=True)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -112,7 +111,6 @@ def main():
     args = parser.parse_args()
     today = datetime.now(TZ).date().isoformat()
     slot_index = SLOTS.index(args.slot)
-    # Stable daily selection; rotates the fact bank and uses different categories per day.
     day_number = datetime.now(TZ).date().toordinal()
     start = (day_number * 3) % len(FACTS)
     chosen = FACTS[(start + slot_index * 5) % len(FACTS)]
