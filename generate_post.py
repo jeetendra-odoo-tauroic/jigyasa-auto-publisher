@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
-"""Generate Hindi social quote graphics with Pillow; no paid API required.
-
-Future extension point: keep create_image(post, output_path) as the media
-provider boundary so a local or hosted AI image model can be added later.
-"""
+"""Generate four fresh Hindi Facebook posts with Gemini and render graphics with Pillow."""
 import argparse
 import json
 import os
 import random
 import sys
+import requests
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -17,7 +14,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent
 TZ = ZoneInfo(os.getenv("POST_TIMEZONE", "Asia/Kolkata"))
-SLOTS = ["07:00", "10:00", "13:30", "16:10", "20:30"]
+SLOTS = ["07:00", "10:00", "13:30", "20:30"]
 BRAND = (os.getenv("BRAND_NAME") or "Jigyasa").strip()
 NICHE = (os.getenv("CONTENT_NICHE") or "Hindi thoughts, life lessons and everyday knowledge").strip()
 LANGUAGE = (os.getenv("POST_LANGUAGE") or "Hindi").strip()
@@ -135,48 +132,103 @@ def create_image(post, output_path):
     image.save(output_path, "JPEG", quality=92, optimize=True)
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--slot", required=True, choices=SLOTS)
-    slot = parser.parse_args().slot
-    now = datetime.now(TZ)
-    day = now.date().isoformat()
+def generate_with_gemini(day):
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("Missing GEMINI_API_KEY GitHub Actions secret.")
+    slots_text = ", ".join(SLOTS)
+    prompt = f"""Create exactly four distinct, engaging Facebook posts in Hindi for the brand {BRAND}.
+Niche: {NICHE}. Audience: {AUDIENCE}. Language: {LANGUAGE}. Date: {day}.
+One post for each slot, exactly: {slots_text}. Return only a valid JSON array.
+Each object must contain: slot, topic, title, quote, subquote, caption, hashtags, visual_style.
+Rules:
+- Use natural, correct Hindi in Devanagari. Avoid repeated themes or wording across the four posts.
+- quote should be a short emotionally resonant line, suitable for a graphic, with at most two lines separated by \\n.
+- subquote should add a meaningful second thought, at most two lines separated by \\n.
+- title should be short. caption should be ready to publish and invite genuine comments without engagement bait.
+- hashtags must be a string of 4-8 relevant hashtags, including #Jigyasa.
+- visual_style should be a short description of a color palette/mood for a text graphic.
+- Avoid fabricated statistics, current-affairs claims, medical/financial advice, hate, and political misinformation.
+- Do not include markdown fences or any extra text.
+JSON example shape: [{{"slot":"07:00","topic":"जीवन","title":"...","quote":"...\\n...","subquote":"...\\n...","caption":"...","hashtags":"#... #Jigyasa","visual_style":"warm sunrise palette"}}]"""
+    response = requests.post(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
+        json={
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {"responseMimeType": "application/json", "temperature": 0.9},
+        },
+        timeout=90,
+    )
+    if not response.ok:
+        raise RuntimeError(f"Gemini API returned HTTP {response.status_code}: {response.text[:500]}")
+    data = response.json()
+    try:
+        raw = data["candidates"][0]["content"]["parts"][0]["text"]
+        posts = json.loads(raw)
+    except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Gemini returned an invalid JSON response.") from exc
+    if not isinstance(posts, list) or len(posts) != len(SLOTS):
+        raise RuntimeError("Gemini must return exactly four post objects.")
+    by_slot = {}
+    required = ("topic", "title", "quote", "subquote", "caption", "hashtags")
+    for post in posts:
+        if not isinstance(post, dict) or post.get("slot") not in SLOTS:
+            raise RuntimeError("Gemini returned a missing or invalid slot.")
+        slot = post["slot"]
+        if slot in by_slot or any(not str(post.get(k, "")).strip() for k in required):
+            raise RuntimeError(f"Gemini returned duplicate slot or missing fields for {slot}.")
+        by_slot[slot] = post
+    if set(by_slot) != set(SLOTS):
+        raise RuntimeError("Gemini did not return all four required slots.")
+    return by_slot
 
-    # Rotate content by date and slot without needing an external API.
-    index = (now.date().toordinal() + SLOTS.index(slot)) % len(POSTS)
-    post = dict(POSTS[index])
+
+def save_post(post, day, slot):
     post.update({
-        "image_prompt": "Pillow-generated Hindi quote graphic; future AI artwork can be plugged in here.",
         "date": day,
         "slot": slot,
         "brand": BRAND,
         "language": LANGUAGE,
         "niche": NICHE,
         "target_audience": AUDIENCE,
-        "generator": "pillow_quote_graphic",
+        "generator": "gemini-2.5-flash+pillow",
     })
-    post["caption"] = post["caption"].strip() + "\n\n" + post["hashtags"].strip()
-
+    post["caption"] = post["caption"].strip() + "\\n\\n" + post["hashtags"].strip()
     folder = ROOT / "content" / day
     folder.mkdir(parents=True, exist_ok=True)
     slot_name = slot.replace(":", "-")
     image_rel = f"content/{day}/{slot_name}.jpg"
     image_path = ROOT / image_rel
-    try:
-        create_image(post, image_path)
-    except Exception as exc:
-        sys.exit("Could not create quote graphic: " + str(exc))
+    create_image(post, image_path)
     if not image_path.is_file() or image_path.stat().st_size < 10000:
-        sys.exit("Generated image is missing or unexpectedly small.")
-
+        raise RuntimeError(f"Generated image is missing or unexpectedly small: {image_rel}")
     post["image"] = image_rel
     (folder / f"{slot_name}.json").write_text(
-        json.dumps(post, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        json.dumps(post, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8"
     )
-    print(f"Created: {image_rel}")
-    print("Generator: Pillow (no paid API)")
-    print("Title:", post["title"])
-    print("Hashtags:", post["hashtags"])
+    print(f"Created: {image_rel} | {post['title']}")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--all-slots", action="store_true", help="Generate the four daily posts.")
+    parser.add_argument("--slot", choices=SLOTS, help="Generate only one post for this slot.")
+    args = parser.parse_args()
+    if not args.all_slots and not args.slot:
+        parser.error("Use --all-slots or --slot.")
+    now = datetime.now(TZ)
+    day = now.date().isoformat()
+    try:
+        generated = generate_with_gemini(day)
+        slots = SLOTS if args.all_slots else [args.slot]
+        for slot in slots:
+            post = dict(generated[slot])
+            post["image_prompt"] = post.get("visual_style", "Elegant Hindi quote graphic")
+            save_post(post, day, slot)
+        print(f"Generated {len(slots)} post(s) for {day} using Gemini and Pillow.")
+    except Exception as exc:
+        sys.exit("Post generation failed: " + str(exc))
 
 
 if __name__ == "__main__":
