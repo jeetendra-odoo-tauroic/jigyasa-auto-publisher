@@ -26,7 +26,7 @@ on:
           - "20:30"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   publish:
@@ -80,6 +80,22 @@ jobs:
           POST_SLOT: ${{ steps.slot.outputs.slot }}
           POLLINATIONS_API_KEY: ${{ secrets.POLLINATIONS_API_KEY }}
         run: python generate_post.py --slot "$POST_SLOT"
+
+      - name: Commit generated image and post metadata
+        env:
+          POST_SLOT: ${{ steps.slot.outputs.slot }}
+        run: |
+          TODAY="$(TZ=Asia/Kolkata date +%F)"
+          FILE_SLOT="${POST_SLOT//:/-}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "content/$TODAY/$FILE_SLOT.jpg" "content/$TODAY/$FILE_SLOT.json"
+          if git diff --cached --quiet; then
+            echo "No generated content changes to commit."
+          else
+            git commit -m "Add generated post for $TODAY $POST_SLOT"
+            git push
+          fi
 
       - name: Publish generated image to Facebook
         env:
