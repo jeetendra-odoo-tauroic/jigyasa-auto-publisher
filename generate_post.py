@@ -152,7 +152,7 @@ Rules:
 - Do not include markdown fences or any extra text.
 JSON example shape: [{{"slot":"07:00","topic":"जीवन","title":"...","quote":"...\n...","subquote":"...\n...","caption":"...","hashtags":"#... #Jigyasa","visual_style":"warm sunrise palette"}}]"""
     response = requests.post(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
         headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
         json={
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
@@ -192,7 +192,7 @@ def save_post(post, day, slot):
         "language": LANGUAGE,
         "niche": NICHE,
         "target_audience": AUDIENCE,
-        "generator": "gemini-2.5-flash+pillow",
+        "generator": "gemini-3.8-flash+pillow",
     })
     post["caption"] = post["caption"].strip() + "\n\n" + post["hashtags"].strip()
     folder = ROOT / "content" / day
