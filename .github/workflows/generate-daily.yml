@@ -1,0 +1,52 @@
+name: Generate Daily Facebook Posts
+
+on:
+  schedule:
+    # 6:00 AM IST (00:30 UTC)
+    - cron: "30 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Devanagari fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-core
+
+      - name: Install dependencies
+        run: pip install requests Pillow
+
+      - name: Generate four posts and graphics
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          BRAND_NAME: ${{ vars.BRAND_NAME }}
+          CONTENT_NICHE: ${{ vars.CONTENT_NICHE }}
+          POST_LANGUAGE: ${{ vars.POST_LANGUAGE }}
+          TARGET_AUDIENCE: ${{ vars.TARGET_AUDIENCE }}
+        run: python generate_post.py --all-slots
+
+      - name: Commit generated posts
+        run: |
+          TODAY="$(TZ=Asia/Kolkata date +%F)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "content/$TODAY/"
+          if git diff --cached --quiet; then
+            echo "No generated content changes to commit."
+          else
+            git commit -m "Generate four Facebook posts for $TODAY"
+            git push
+          fi
