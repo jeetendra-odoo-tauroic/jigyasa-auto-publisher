@@ -1,4 +1,4 @@
-name: Jigyasa Facebook Image Publisher
+name: AI Social Post Publisher
 
 on:
   schedule:
