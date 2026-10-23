@@ -90,103 +90,78 @@ def centered_multiline(draw, text, y, font, fill, spacing=20, stroke_width=0, st
 
 
 def create_image(post, output_path):
-    """Generate a topic-specific hero image with Gemini Image, then add restrained Hindi branding."""
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    if not api_key:
-        raise RuntimeError("Missing GEMINI_API_KEY for image generation.")
-
-    scene_prompt = f"""Create a premium, photorealistic editorial image for a Hindi Facebook knowledge/lifestyle page.
-Topic: {post.get('topic', '')}
-Post idea: {post.get('title', '')}. Context: {post.get('subquote', '')}
-Visual direction: {post.get('visual_style', 'cinematic natural light, sophisticated colors')}.
-Make the image tell the story visually with a clear subject, rich natural details, beautiful lighting, professional composition, and realistic textures.
-Portrait 4:5 composition for a Facebook feed. Keep the main subject in the upper and middle areas; leave the lower 25 percent visually calm and darker so a short headline can be overlaid later.
-No text, no letters, no typography, no logos, no watermarks, no borders, no quote-card design, no decorative circles, no collage, no infographic. It must look like a professional photograph/editorial visual, not a text poster."""
-
-    response = requests.post(
-        "https://generativelanguage.googleapis.com/v1beta/interactions",
-        headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
-        json={
-            "model": "gemini-3.1-flash-image",
-            "input": [{"type": "text", "text": scene_prompt}],
-            "response_format": {
-                "type": "image",
-                "mime_type": "image/jpeg",
-                "aspect_ratio": "4:5",
-                "image_size": "1K",
-            },
-        },
-        timeout=(15, 150),
-    )
-    if not response.ok:
-        raise RuntimeError(f"Gemini image API returned HTTP {response.status_code}: {response.text[:500]}")
-    data = response.json()
-
-    # The Interactions REST response may expose the final image directly or inside model_output steps.
-    image_data = None
-    direct = data.get("output_image")
-    if isinstance(direct, dict):
-        image_data = direct.get("data")
-    if not image_data:
-        def find_image(node):
-            if isinstance(node, dict):
-                if node.get("type") == "image" and isinstance(node.get("data"), str):
-                    return node["data"]
-                for value in node.values():
-                    found = find_image(value)
-                    if found:
-                        return found
-            elif isinstance(node, list):
-                for value in node:
-                    found = find_image(value)
-                    if found:
-                        return found
-            return None
-        image_data = find_image(data.get("output", data.get("steps", data)))
-    if not image_data:
-        raise RuntimeError("Gemini image response did not contain image data.")
-
-    try:
-        image = Image.open(BytesIO(base64.b64decode(image_data))).convert("RGB")
-    except Exception as exc:
-        raise RuntimeError("Could not decode Gemini-generated image bytes.") from exc
-
-    # Crop to the Facebook 4:5 feed ratio without stretching the generated artwork.
-    target_ratio = WIDTH / HEIGHT
-    current_ratio = image.width / image.height
-    if current_ratio > target_ratio:
-        crop_width = int(image.height * target_ratio)
-        left = (image.width - crop_width) // 2
-        image = image.crop((left, 0, left + crop_width, image.height))
-    else:
-        crop_height = int(image.width / target_ratio)
-        top = max(0, (image.height - crop_height) // 3)
-        image = image.crop((0, top, image.width, top + crop_height))
-    image = image.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS).convert("RGBA")
-
-    # A subtle bottom fade keeps the photograph dominant while preserving Hindi headline readability.
-    overlay = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
-    pixels = overlay.load()
-    fade_start = int(HEIGHT * 0.66)
-    for y in range(fade_start, HEIGHT):
-        alpha = int(12 + 175 * ((y - fade_start) / max(1, HEIGHT - fade_start)))
-        for x in range(WIDTH):
-            pixels[x, y] = (9, 14, 24, alpha)
-    image = Image.alpha_composite(image, overlay)
-    draw = ImageDraw.Draw(image)
-    brand_font = load_font(28, bold=True)
-    title_font = load_font(54, bold=True)
-    subtitle_font = load_font(29)
-
-    # Keep branding small and the amount of overlaid copy deliberately low.
-    draw.text((66, HEIGHT - 235), BRAND, font=brand_font, fill=(245, 204, 128, 255))
+    """Draw a topic-aware cinematic editorial scene with Pillow; no image API required."""
+    topic = str(post.get("topic", "")).lower()
     title = str(post.get("title", "")).strip()
-    # Wrap title to fit the available width; title only, not a large quote-card paragraph.
-    words = title.split()
+    palettes = {
+        "warm": ((29, 43, 64), (197, 123, 79), (255, 213, 145), (28, 38, 48)),
+        "rose": ((49, 34, 54), (174, 101, 108), (249, 207, 170), (29, 28, 39)),
+        "green": ((24, 49, 45), (102, 142, 97), (231, 205, 147), (20, 38, 37)),
+        "blue": ((20, 38, 60), (83, 128, 148), (228, 218, 184), (18, 33, 43)),
+    }
+    if any(k in topic for k in ("रिश्त", "परिवार", "प्यार", "प्रेम")):
+        top, horizon, light, dark = palettes["rose"]
+    elif any(k in topic for k in ("मेहनत", "सफल", "प्रेरणा", "लक्ष्य")):
+        top, horizon, light, dark = palettes["green"]
+    elif any(k in topic for k in ("समाज", "ज्ञान", "शिक्षा", "देश")):
+        top, horizon, light, dark = palettes["blue"]
+    else:
+        top, horizon, light, dark = palettes["warm"]
+
+    image = Image.new("RGB", (WIDTH, HEIGHT))
+    pix = image.load()
+    for y in range(HEIGHT):
+        t = y / HEIGHT
+        for x in range(WIDTH):
+            glow = max(0.0, 1 - (((x-WIDTH*.68)/(WIDTH*.8))**2 + ((y-HEIGHT*.38)/(HEIGHT*.6))**2))
+            pix[x, y] = tuple(max(0, min(255, int(top[i]*(1-t) + horizon[i]*t + light[i]*glow*.20))) for i in range(3))
+    draw = ImageDraw.Draw(image, "RGBA")
+    sx, sy = int(WIDTH*.70), int(HEIGHT*.34)
+    for r, a in ((190, 15), (130, 25), (70, 45)):
+        draw.ellipse((sx-r, sy-r, sx+r, sy+r), fill=(*light, a))
+    draw.ellipse((sx-48, sy-48, sx+48, sy+48), fill=(*light, 220))
+    draw.polygon([(0,650),(170,510),(320,630),(500,475),(710,630),(900,500),(WIDTH,590),(WIDTH,1000),(0,1000)], fill=(*dark,150))
+    draw.polygon([(0,790),(210,650),(420,770),(650,610),(850,730),(WIDTH,650),(WIDTH,HEIGHT),(0,HEIGHT)], fill=(13,27,35,225))
+
+    if any(k in topic for k in ("रिश्त", "परिवार", "प्यार", "प्रेम", "दोस्ती")):
+        for cx, cy, scale in ((425,700,1.0),(585,710,.88)):
+            r = int(30*scale)
+            draw.ellipse((cx-r,cy-r,cx+r,cy+r), fill=(15,23,32,255))
+            draw.rounded_rectangle((cx-int(48*scale),cy+r-2,cx+int(48*scale),1020), radius=30, fill=(15,23,32,255))
+    elif any(k in topic for k in ("मेहनत", "सफल", "प्रेरणा", "लक्ष्य", "संघर्ष")):
+        draw.polygon([(70,1050),(250,850),(365,930),(520,730),(650,820),(790,680),(WIDTH,900),(WIDTH,HEIGHT)], fill=(14,30,34,245))
+        draw.line([(140,1030),(300,900),(420,930),(540,785)], fill=(*light,190), width=7)
+        cx,cy=470,770
+        draw.ellipse((cx-22,cy-72,cx+22,cy-28), fill=(12,22,29,255))
+        draw.polygon([(cx-23,cy-30),(cx+23,cy-30),(cx+43,cy+58),(cx-35,cy+58)], fill=(12,22,29,255))
+        draw.line((cx-10,cy+50,cx-42,cy+125), fill=(12,22,29,255), width=16)
+        draw.line((cx+15,cy+50,cx+45,cy+112), fill=(12,22,29,255), width=16)
+    elif any(k in topic for k in ("ज्ञान", "सीख", "शिक्षा", "किताब")):
+        draw.rectangle((90,740,990,1050), fill=(45,31,25,200))
+        draw.polygon([(150,800),(510,850),(510,1000),(150,930)], fill=(240,224,190,255))
+        draw.polygon([(510,850),(880,785),(880,925),(510,1000)], fill=(250,237,205,255))
+        for yy in (855,885,915):
+            draw.line((215,yy,455,yy+34), fill=(112,94,73,170), width=3)
+            draw.line((565,yy+20,820,yy-25), fill=(112,94,73,170), width=3)
+        draw.line((510,850,510,1000), fill=(105,76,48,220), width=5)
+    else:
+        draw.polygon([(0,900),(WIDTH,820),(WIDTH,HEIGHT),(0,HEIGHT)], fill=(15,32,37,230))
+        draw.polygon([(360,HEIGHT),(525,850),(595,850),(800,HEIGHT)], fill=(*light,90))
+
+    shade = Image.new("RGBA", (WIDTH, HEIGHT), (0,0,0,0))
+    sp = shade.load()
+    for y in range(int(HEIGHT*.68), HEIGHT):
+        alpha = int(12 + 175*((y-HEIGHT*.68)/(HEIGHT*.32)))
+        for x in range(WIDTH):
+            sp[x,y] = (6,12,19,alpha)
+    image = Image.alpha_composite(image.convert("RGBA"), shade)
+    draw = ImageDraw.Draw(image, "RGBA")
+    draw.text((66, HEIGHT-225), BRAND, font=load_font(28, True), fill=(245,204,128,255))
+    font = load_font(51, True)
     lines, current = [], ""
-    for word in words:
-        trial = f"{current} {word}".strip()
-        if draw.textbbox((0, 0), trial, font=title_font)[2] <= WIDTH - 132:
+    for word in title.split():
+        trial = (current + " " + word).strip()
+        if draw.textbbox((0,0), trial, font=font)[2] <= WIDTH-132:
             current = trial
         else:
             if current:
@@ -194,11 +169,8 @@ No text, no letters, no typography, no logos, no watermarks, no borders, no quot
             current = word
     if current:
         lines.append(current)
-    title_text = "\\n".join(lines[:2])
-    draw.multiline_text((66, HEIGHT - 190), title_text, font=title_font,
-                        fill=(255, 255, 255, 255), spacing=8, stroke_width=0)
+    draw.multiline_text((66, HEIGHT-180), "\\n".join(lines[:2]), font=font, fill=(255,255,255,255), spacing=8, stroke_width=1, stroke_fill=(0,0,0,110))
     image.convert("RGB").save(output_path, "JPEG", quality=93, optimize=True)
-
 
 def generate_with_gemini(day):
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
