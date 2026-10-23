@@ -35,10 +35,14 @@ def read_post_from_zip(zip_path, day, slot):
                 post = json.loads(archive.read(json_member).decode("utf-8"))
             except (UnicodeDecodeError, json.JSONDecodeError, KeyError) as exc:
                 fail(f"Cannot read {json_member} inside {zip_path.name}: {exc}")
-            caption = str(post.get("caption", "")).strip()
-            image_value = str(post.get("image", "")).strip()
+            # Accept both legacy caption/image and package caption/image_path fields.
+            caption = str(post.get("caption") or post.get("description") or "").strip()
+            image_value = str(post.get("image") or post.get("image_path") or "").strip()
             if not caption or not image_value:
-                fail(f"{json_member} must contain non-empty 'caption' and 'image' fields.")
+                fail(
+                    f"{json_member} must contain a non-empty caption (or description) "
+                    "and image (or image_path) field."
+                )
             image_member = PurePosixPath(image_value).as_posix()
             if image_member.startswith("/") or ".." in PurePosixPath(image_member).parts:
                 fail("Image path in ZIP JSON must stay inside the ZIP content folder.")
