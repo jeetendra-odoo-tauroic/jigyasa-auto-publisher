@@ -1,31 +1,45 @@
 # Jigyasa Auto Publisher
 
-This repository publishes four prepared ChatGPT-created image posts to a Facebook Page each day. **Image creation is done in ChatGPT; GitHub does not generate or redraw the images.** You upload the generated image files and matching JSON metadata once per day, and GitHub Actions handles scheduled Facebook publishing.
+Daily Facebook publishing uses one ZIP package per date. ChatGPT creates the actual images and post copy; you upload one ZIP to GitHub, and the scheduled GitHub Actions publisher selects the matching image and JSON for each slot.
 
-## Daily workflow
+## Daily process
 
-1. Ask ChatGPT to create four topic-specific images, Hindi titles, captions and hashtags.
-2. Upload the four image files and four matching JSON files into `content/YYYY-MM-DD/`.
-3. Commit/push the files to the default branch.
-4. GitHub Actions publishes the four posts at **07:00, 10:00, 13:30 and 20:30 India time**.
+1. Ask ChatGPT to create one ZIP containing all four posts.
+2. In this repository, create/open `content/YYYY-MM-DD/` using the India-local date.
+3. Upload the single ZIP as `jigyasa-daily.zip` inside that dated folder and commit it to the default branch.
+4. GitHub Actions reads the ZIP at each scheduled slot and publishes the matching image/caption to Facebook.
 
-See [content/README.md](content/README.md) for the exact file names and JSON format.
+## Required ZIP structure
 
-## One-time setup
+The ZIP must contain these files at its root (a README may also be included):
 
-In **Settings → Secrets and variables → Actions → Secrets**, configure:
+- `07-00.jpg` and `07-00.json`
+- `10-00.jpg` and `10-00.json`
+- `13-30.jpg` and `13-30.json`
+- `20-30.jpg` and `20-30.json`
 
-- `FACEBOOK_PAGE_ID`: Facebook Page ID.
-- `FACEBOOK_PAGE_ACCESS_TOKEN`: Page access token with permission to publish photos to that Page.
+Each JSON must have at least a non-empty `caption` and an `image` field. Recommended fields are `date`, `slot`, `topic`, `title`, `caption`, `hashtags`, and `image`. Use the matching image filename in `image`, such as `content/YYYY-MM-DD/07-00.jpg` or `07-00.jpg`.
 
-Never commit tokens or API keys to the repository.
+## Schedule (India time)
 
-## Test carefully
+- 07:00
+- 10:00
+- 13:30
+- 20:30
 
-The workflow's **Run workflow** option publishes to the Facebook Page; it is not a dry run. First verify the dated JSON and image file paths, and use a manual run only when you intend to publish that slot.
+## Required GitHub secrets
 
-## Notes
+Under **Settings → Secrets and variables → Actions → Secrets**, configure:
 
-- Scheduled GitHub Actions jobs can occasionally start a little late.
-- GitHub Actions publishes only the post files that exist for the current India-local date and configured slot.
-- Automatic image generation workflows are disabled for scheduled runs so they do not create substitute Pillow drawings. ChatGPT-generated images remain the intended image source.
+- `FACEBOOK_PAGE_ID`
+- `FACEBOOK_PAGE_ACCESS_TOKEN`
+
+Never commit access tokens or API keys.
+
+## Important
+
+- The ZIP must be uploaded before the first scheduled slot if you want all four posts published that day.
+- The publisher checks the ZIP and matching files at runtime. A missing/corrupt ZIP or missing slot pair causes that slot to fail.
+- Manual workflow dispatch publishes immediately; use it only when you intend to publish.
+- The publisher also retains backwards compatibility with older separate image/JSON files.
+- Successful publishing still depends on valid Facebook credentials and Page permissions.
