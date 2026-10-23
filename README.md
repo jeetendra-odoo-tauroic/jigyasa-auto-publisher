@@ -1,45 +1,58 @@
 # Jigyasa Auto Publisher
 
-Daily Facebook publishing uses one ZIP package per date. ChatGPT creates the actual images and post copy; you upload one ZIP to GitHub, and the scheduled GitHub Actions publisher selects the matching image and JSON for each slot.
+Upload **one ZIP file** named `daily-posts.zip` to the repository root. GitHub Actions' scheduled publisher reads the correct post from inside that ZIP at each slot and sends the matching image and caption to your Facebook Page.
 
 ## Daily process
 
-1. Ask ChatGPT to create one ZIP containing all four posts.
-2. In this repository, create/open `content/YYYY-MM-DD/` using the India-local date.
-3. Upload the single ZIP as `jigyasa-daily.zip` inside that dated folder and commit it to the default branch.
-4. GitHub Actions reads the ZIP at each scheduled slot and publishes the matching image/caption to Facebook.
+1. Ask ChatGPT to prepare today's four images, Hindi captions and JSON metadata in a single ZIP.
+2. Ensure the ZIP contains this exact structure, using today's date in India time:
 
-## Required ZIP structure
+```text
+daily-posts.zip
+└── content/
+    └── YYYY-MM-DD/
+        ├── 07-00.jpg
+        ├── 07-00.json
+        ├── 10-00.jpg
+        ├── 10-00.json
+        ├── 13-30.jpg
+        ├── 13-30.json
+        ├── 20-30.jpg
+        └── 20-30.json
+```
 
-The ZIP must contain these files at its root (a README may also be included):
+3. Each JSON must contain a non-empty `caption` and `image` path. Example:
 
-- `07-00.jpg` and `07-00.json`
-- `10-00.jpg` and `10-00.json`
-- `13-30.jpg` and `13-30.json`
-- `20-30.jpg` and `20-30.json`
+```json
+{
+  "date": "YYYY-MM-DD",
+  "slot": "07:00",
+  "topic": "A topic",
+  "title": "A Hindi title",
+  "caption": "Hindi caption and hashtags",
+  "hashtags": "#Jigyasa #HindiThoughts",
+  "image": "content/YYYY-MM-DD/07-00.jpg"
+}
+```
 
-Each JSON must have at least a non-empty `caption` and an `image` field. Recommended fields are `date`, `slot`, `topic`, `title`, `caption`, `hashtags`, and `image`. Use the matching image filename in `image`, such as `content/YYYY-MM-DD/07-00.jpg` or `07-00.jpg`.
+The `image` value must exactly match the image's path inside the ZIP. Image paths must stay within the ZIP's content folder. The JSON file for each slot must reference that slot's matching image.
 
-## Schedule (India time)
-
-- 07:00
-- 10:00
-- 13:30
-- 20:30
+4. Upload or replace `daily-posts.zip` at the repository root and commit the change. Do not upload four separate ZIPs.
+5. GitHub Actions automatically reads the slot's JSON and image from the ZIP and publishes at **07:00, 10:00, 13:30 and 20:30 IST**.
 
 ## Required GitHub secrets
 
 Under **Settings → Secrets and variables → Actions → Secrets**, configure:
 
 - `FACEBOOK_PAGE_ID`
-- `FACEBOOK_PAGE_ACCESS_TOKEN`
+- `FACEBOOK_PAGE_ACCESS_TOKEN` with permission to publish photos to your Page
 
-Never commit access tokens or API keys.
+Never put tokens in the ZIP or source code.
 
 ## Important
 
-- The ZIP must be uploaded before the first scheduled slot if you want all four posts published that day.
-- The publisher checks the ZIP and matching files at runtime. A missing/corrupt ZIP or missing slot pair causes that slot to fail.
-- Manual workflow dispatch publishes immediately; use it only when you intend to publish.
-- The publisher also retains backwards compatibility with older separate image/JSON files.
-- Successful publishing still depends on valid Facebook credentials and Page permissions.
+- Replace the ZIP daily with a package containing the current India-local date. Old dated packages will not publish as today's posts.
+- Scheduled runs may start a little late.
+- Running the publisher manually publishes a real Facebook post immediately.
+- The publisher retains backward compatibility with individual dated files if `daily-posts.zip` is absent.
+- This repository code has been updated for ZIP reading, but successful publishing must still be confirmed in GitHub Actions after secrets and a valid ZIP are in place.
