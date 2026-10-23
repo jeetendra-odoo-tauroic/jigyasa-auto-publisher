@@ -15,7 +15,7 @@ PAGE_ID = os.environ.get("FACEBOOK_PAGE_ID", "").strip()
 ACCESS_TOKEN = os.environ.get("FACEBOOK_PAGE_ACCESS_TOKEN", "").strip()
 API_VERSION = os.environ.get("FACEBOOK_GRAPH_API_VERSION", "v23.0").strip()
 SLOT = os.environ.get("POST_SLOT", "").strip()
-VALID_SLOTS = {"07:00", "10:00", "13:30", "20:30"}
+VALID_SLOTS = {"08:00", "13:00", "17:00", "21:30"}
 
 
 def fail(message):
@@ -24,7 +24,7 @@ def fail(message):
 
 
 def read_post_from_zip(zip_path, day, slot):
-    """Read the requested slot's JSON and image from the ZIP named for the India-local date."""
+    """Read the requested slot's JSON and image from the date-stamped ZIP."""
     json_member = f"content/{day}/{slot.replace(':', '-')}.json"
     try:
         with zipfile.ZipFile(zip_path, "r") as archive:
@@ -41,7 +41,7 @@ def read_post_from_zip(zip_path, day, slot):
                 fail(f"{json_member} must contain non-empty 'caption' and 'image' fields.")
             image_member = PurePosixPath(image_value).as_posix()
             if image_member.startswith("/") or ".." in PurePosixPath(image_member).parts:
-                fail("Image path in ZIP JSON must stay inside the content folder.")
+                fail("Image path in ZIP JSON must stay inside the ZIP content folder.")
             if image_member not in names:
                 fail(f"Image '{image_member}' referenced by {json_member} is missing from the ZIP.")
             suffix = PurePosixPath(image_member).suffix.lower()
