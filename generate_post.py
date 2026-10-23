@@ -167,7 +167,7 @@ def create_image(post, output_path):
             current = word
     if current:
         lines.append(current)
-    draw.multiline_text((66, HEIGHT-180), "\\n".join(lines[:2]), font=font, fill=(255,255,255,255), spacing=8, stroke_width=1, stroke_fill=(0,0,0,110))
+    draw.multiline_text((66, HEIGHT-180), "\n".join(lines[:2]), font=font, fill=(255,255,255,255), spacing=8, stroke_width=1, stroke_fill=(0,0,0,110))
     image.convert("RGB").save(output_path, "JPEG", quality=93, optimize=True)
 
 def generate_with_gemini(day):
