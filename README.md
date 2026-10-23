@@ -1,45 +1,31 @@
-# AI Social Post Publisher
+# Jigyasa Auto Publisher
 
-GitHub Actions automatically creates original social posts with the OpenAI API, saves the image and post metadata in this repository, and publishes the image and caption to a Facebook Page.
+This repository publishes four prepared ChatGPT-created image posts to a Facebook Page each day. **Image creation is done in ChatGPT; GitHub does not generate or redraw the images.** You upload the generated image files and matching JSON metadata once per day, and GitHub Actions handles scheduled Facebook publishing.
 
-## Automated flow
+## Daily workflow
 
-1. A scheduled GitHub Actions run starts at the configured India-time slots.
-2. The OpenAI text model generates the topic, title, caption, hashtags and image prompt.
-3. The OpenAI image model generates the image.
-4. The workflow commits the JPG and JSON metadata under `content/YYYY-MM-DD/`.
-5. The workflow publishes the same image and caption to Facebook.
+1. Ask ChatGPT to create four topic-specific images, Hindi titles, captions and hashtags.
+2. Upload the four image files and four matching JSON files into `content/YYYY-MM-DD/`.
+3. Commit/push the files to the default branch.
+4. GitHub Actions publishes the four posts at **07:00, 10:00, 13:30 and 20:30 India time**.
 
-## Required GitHub Actions secret
+See [content/README.md](content/README.md) for the exact file names and JSON format.
 
-In **Settings → Secrets and variables → Actions → Secrets**, add:
+## One-time setup
 
-- `OPENAI_API_KEY`: API key for OpenAI API access.
+In **Settings → Secrets and variables → Actions → Secrets**, configure:
+
 - `FACEBOOK_PAGE_ID`: Facebook Page ID.
-- `FACEBOOK_PAGE_ACCESS_TOKEN`: Page access token with the permissions required to publish photos.
+- `FACEBOOK_PAGE_ACCESS_TOKEN`: Page access token with permission to publish photos to that Page.
 
-A ChatGPT subscription does not include OpenAI API usage; API billing is separate.
+Never commit tokens or API keys to the repository.
 
-## Optional repository variables
+## Test carefully
 
-In **Settings → Secrets and variables → Actions → Variables**, these values are optional:
+The workflow's **Run workflow** option publishes to the Facebook Page; it is not a dry run. First verify the dated JSON and image file paths, and use a manual run only when you intend to publish that slot.
 
-- `OPENAI_TEXT_MODEL` (default `gpt-4.1-mini`)
-- `OPENAI_IMAGE_MODEL` (default `gpt-image-1`)
-- `OPENAI_IMAGE_QUALITY` (default `medium`)
-- `BRAND_NAME` (default `Jigyasa`)
-- `CONTENT_NICHE` (default Hindi educational content, science, history, technology and everyday knowledge)
-- `POST_LANGUAGE` (default `Hindi`)
-- `TARGET_AUDIENCE` (default general audience in India)
+## Notes
 
-## Schedule and manual test
-
-The workflow runs on its schedule in `.github/workflows/publish.yml`. It can also be started from **Actions → AI Social Post Publisher → Run workflow**. A manual run publishes to the configured Facebook Page, so only use it when ready.
-
-## Files
-
-- `generate_post.py`: generates post text and image with OpenAI.
-- `publish.py`: publishes the generated image and caption to Facebook.
-- `.github/workflows/publish.yml`: schedules generation, commits output and publishes it.
-
-Never commit API keys or page tokens to source control.
+- Scheduled GitHub Actions jobs can occasionally start a little late.
+- GitHub Actions publishes only the post files that exist for the current India-local date and configured slot.
+- Automatic image generation workflows are disabled for scheduled runs so they do not create substitute Pillow drawings. ChatGPT-generated images remain the intended image source.
