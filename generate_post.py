@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 """Generate four fresh Hindi Facebook posts with Gemini and render graphics with Pillow."""
 import argparse
-import base64
 import json
 import os
 import random
 import sys
 import requests
-from io import BytesIO
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -187,7 +185,7 @@ Rules:
 - subquote should add a meaningful second thought, at most two lines separated by \n.
 - title should be short. caption should be ready to publish and invite genuine comments without engagement bait.
 - hashtags must be a string of 4-8 relevant hashtags, including #Jigyasa.
-- visual_style should be a short description of a color palette/mood for a text graphic.
+- visual_style should describe a realistic editorial scene that visually represents the topic; avoid text-card/quote-card concepts.
 - Avoid fabricated statistics, current-affairs claims, medical/financial advice, hate, and political misinformation.
 - Do not include markdown fences or any extra text.
 JSON example shape: [{{"slot":"07:00","topic":"जीवन","title":"...","quote":"...\n...","subquote":"...\n...","caption":"...","hashtags":"#... #Jigyasa","visual_style":"warm sunrise palette"}}]"""
@@ -255,7 +253,7 @@ def save_post(post, day, slot):
         "language": LANGUAGE,
         "niche": NICHE,
         "target_audience": AUDIENCE,
-        "generator": "gemini-3.8-flash+pillow",
+        "generator": "gemini-text+pillow-scene-art",
     })
     post["caption"] = post["caption"].strip() + "\n\n" + post["hashtags"].strip()
     folder = ROOT / "content" / day
@@ -287,7 +285,7 @@ def main():
         slots = SLOTS if args.all_slots else [args.slot]
         for slot in slots:
             post = dict(generated[slot])
-            post["image_prompt"] = post.get("visual_style", "Elegant Hindi quote graphic")
+            post["image_prompt"] = post.get("visual_style", "cinematic realistic editorial scene with natural light")
             save_post(post, day, slot)
         print(f"Generated {len(slots)} post(s) for {day} using Gemini and Pillow.")
     except Exception as exc:
