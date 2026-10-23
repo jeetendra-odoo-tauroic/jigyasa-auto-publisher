@@ -2,10 +2,10 @@ name: Facebook Scheduled Publisher
 
 on:
   schedule:
-    - cron: "30 1 * * *" # 7:00 AM IST
-    - cron: "30 4 * * *" # 10:00 AM IST
-    - cron: "0 8 * * *"  # 1:30 PM IST
-    - cron: "0 15 * * *" # 8:30 PM IST
+    - cron: "30 2 * * *" # 8:00 AM IST
+    - cron: "30 7 * * *" # 1:00 PM IST
+    - cron: "30 11 * * *" # 5:00 PM IST
+    - cron: "0 16 * * *" # 9:30 PM IST
   workflow_dispatch:
     inputs:
       slot:
@@ -13,10 +13,10 @@ on:
         required: true
         type: choice
         options:
-          - "07:00"
-          - "10:00"
-          - "13:30"
-          - "20:30"
+          - "08:00"
+          - "13:00"
+          - "17:00"
+          - "21:30"
 
 permissions:
   contents: read
@@ -44,10 +44,10 @@ jobs:
             SLOT="$INPUT_SLOT"
           else
             case "$SCHEDULE" in
-              "30 1 * * *") SLOT="07:00" ;;
-              "30 4 * * *") SLOT="10:00" ;;
-              "0 8 * * *") SLOT="13:30" ;;
-              "0 15 * * *") SLOT="20:30" ;;
+              "30 2 * * *") SLOT="08:00" ;;
+              "30 7 * * *") SLOT="13:00" ;;
+              "30 11 * * *") SLOT="17:00" ;;
+              "0 16 * * *") SLOT="21:30" ;;
               *) echo "Unknown schedule: $SCHEDULE"; exit 1 ;;
             esac
           fi
