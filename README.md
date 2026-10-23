@@ -1,14 +1,15 @@
 # Jigyasa Auto Publisher
 
-Upload **one ZIP file** named `daily-posts.zip` to the repository root. GitHub Actions' scheduled publisher reads the correct post from inside that ZIP at each slot and sends the matching image and caption to your Facebook Page.
+Upload **one date-stamped ZIP file** to the repository root. The required filename format is `daily-posts-YYYY-MM-DD.zip`, where the date is the current date in India time. GitHub Actions calculates today's date in `Asia/Kolkata`, opens only that day's ZIP, and publishes the matching post for each scheduled slot.
 
 ## Daily process
 
-1. Ask ChatGPT to prepare today's four images, Hindi captions and JSON metadata in a single ZIP.
-2. Ensure the ZIP contains this exact structure, using today's date in India time:
+1. Prepare four images, Hindi captions and JSON metadata in a single ZIP.
+2. Name the ZIP using today's India-local date, for example `daily-posts-2026-10-23.zip`.
+3. Ensure the ZIP contains this exact structure:
 
 ```text
-daily-posts.zip
+daily-posts-YYYY-MM-DD.zip
 └── content/
     └── YYYY-MM-DD/
         ├── 07-00.jpg
@@ -21,7 +22,7 @@ daily-posts.zip
         └── 20-30.json
 ```
 
-3. Each JSON must contain a non-empty `caption` and `image` path. Example:
+4. Each JSON must contain a non-empty `caption` and `image` path. Example:
 
 ```json
 {
@@ -35,10 +36,10 @@ daily-posts.zip
 }
 ```
 
-The `image` value must exactly match the image's path inside the ZIP. Image paths must stay within the ZIP's content folder. The JSON file for each slot must reference that slot's matching image.
+The `image` value must exactly match the image path inside the ZIP. Each slot's JSON must reference that slot's image.
 
-4. Upload or replace `daily-posts.zip` at the repository root and commit the change. Do not upload four separate ZIPs.
-5. GitHub Actions automatically reads the slot's JSON and image from the ZIP and publishes at **07:00, 10:00, 13:30 and 20:30 IST**.
+5. Upload the newly dated ZIP to the repository root and commit it. You may keep older dated ZIPs; the publisher selects today's filename and does not use yesterday's ZIP.
+6. GitHub Actions reads the matching JSON and image from today's ZIP and publishes at **07:00, 10:00, 13:30 and 20:30 IST**.
 
 ## Required GitHub secrets
 
@@ -51,8 +52,8 @@ Never put tokens in the ZIP or source code.
 
 ## Important
 
-- Replace the ZIP daily with a package containing the current India-local date. Old dated packages will not publish as today's posts.
+- Both the ZIP filename date and its internal folder date must match today's date in India time.
+- If today's ZIP is missing or its expected post/image is missing, the publisher stops with an error instead of silently using an older package.
 - Scheduled runs may start a little late.
 - Running the publisher manually publishes a real Facebook post immediately.
-- The publisher retains backward compatibility with individual dated files if `daily-posts.zip` is absent.
-- This repository code has been updated for ZIP reading, but successful publishing must still be confirmed in GitHub Actions after secrets and a valid ZIP are in place.
+- The code has been updated to require the date-stamped ZIP, but successful publishing still needs to be confirmed in GitHub Actions after secrets and a valid ZIP are in place.
