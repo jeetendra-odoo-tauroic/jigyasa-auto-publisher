@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Generate four fresh Hindi Facebook posts with Gemini and render graphics with Pillow."""
 import argparse
+import base64
 import json
 import os
 import random
 import sys
 import requests
+from io import BytesIO
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -88,48 +90,114 @@ def centered_multiline(draw, text, y, font, fill, spacing=20, stroke_width=0, st
 
 
 def create_image(post, output_path):
-    """Media-provider boundary: replace/extend this for future AI artwork."""
-    # Choose a reproducible palette per post so scheduled runs look varied.
-    seed = f"{post['date']}-{post['slot']}-{post['topic']}"
-    rng = random.Random(seed)
-    palettes = [
-        ((22, 25, 68), (99, 43, 113), (255, 204, 128)),
-        ((7, 68, 78), (20, 126, 120), (255, 225, 170)),
-        ((83, 34, 53), (164, 67, 76), (255, 218, 185)),
-        ((24, 48, 91), (58, 92, 151), (255, 215, 126)),
-        ((57, 44, 94), (126, 71, 120), (255, 225, 170)),
-    ]
-    top, bottom, accent = rng.choice(palettes)
-    image = Image.new("RGB", (WIDTH, HEIGHT))
-    pixels = image.load()
-    for y in range(HEIGHT):
-        t = y / (HEIGHT - 1)
-        color = tuple(int(top[i] * (1 - t) + bottom[i] * t) for i in range(3))
+    """Generate a topic-specific hero image with Gemini Image, then add restrained Hindi branding."""
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("Missing GEMINI_API_KEY for image generation.")
+
+    scene_prompt = f"""Create a premium, photorealistic editorial image for a Hindi Facebook knowledge/lifestyle page.
+Topic: {post.get('topic', '')}
+Post idea: {post.get('title', '')}. Context: {post.get('subquote', '')}
+Visual direction: {post.get('visual_style', 'cinematic natural light, sophisticated colors')}.
+Make the image tell the story visually with a clear subject, rich natural details, beautiful lighting, professional composition, and realistic textures.
+Portrait 4:5 composition for a Facebook feed. Keep the main subject in the upper and middle areas; leave the lower 25 percent visually calm and darker so a short headline can be overlaid later.
+No text, no letters, no typography, no logos, no watermarks, no borders, no quote-card design, no decorative circles, no collage, no infographic. It must look like a professional photograph/editorial visual, not a text poster."""
+
+    response = requests.post(
+        "https://generativelanguage.googleapis.com/v1beta/interactions",
+        headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
+        json={
+            "model": "gemini-3.1-flash-image",
+            "input": [{"type": "text", "text": scene_prompt}],
+            "response_format": {
+                "type": "image",
+                "mime_type": "image/jpeg",
+                "aspect_ratio": "4:5",
+                "image_size": "1K",
+            },
+        },
+        timeout=(15, 150),
+    )
+    if not response.ok:
+        raise RuntimeError(f"Gemini image API returned HTTP {response.status_code}: {response.text[:500]}")
+    data = response.json()
+
+    # The Interactions REST response may expose the final image directly or inside model_output steps.
+    image_data = None
+    direct = data.get("output_image")
+    if isinstance(direct, dict):
+        image_data = direct.get("data")
+    if not image_data:
+        def find_image(node):
+            if isinstance(node, dict):
+                if node.get("type") == "image" and isinstance(node.get("data"), str):
+                    return node["data"]
+                for value in node.values():
+                    found = find_image(value)
+                    if found:
+                        return found
+            elif isinstance(node, list):
+                for value in node:
+                    found = find_image(value)
+                    if found:
+                        return found
+            return None
+        image_data = find_image(data.get("output", data.get("steps", data)))
+    if not image_data:
+        raise RuntimeError("Gemini image response did not contain image data.")
+
+    try:
+        image = Image.open(BytesIO(base64.b64decode(image_data))).convert("RGB")
+    except Exception as exc:
+        raise RuntimeError("Could not decode Gemini-generated image bytes.") from exc
+
+    # Crop to the Facebook 4:5 feed ratio without stretching the generated artwork.
+    target_ratio = WIDTH / HEIGHT
+    current_ratio = image.width / image.height
+    if current_ratio > target_ratio:
+        crop_width = int(image.height * target_ratio)
+        left = (image.width - crop_width) // 2
+        image = image.crop((left, 0, left + crop_width, image.height))
+    else:
+        crop_height = int(image.width / target_ratio)
+        top = max(0, (image.height - crop_height) // 3)
+        image = image.crop((0, top, image.width, top + crop_height))
+    image = image.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS).convert("RGBA")
+
+    # A subtle bottom fade keeps the photograph dominant while preserving Hindi headline readability.
+    overlay = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+    pixels = overlay.load()
+    fade_start = int(HEIGHT * 0.66)
+    for y in range(fade_start, HEIGHT):
+        alpha = int(12 + 175 * ((y - fade_start) / max(1, HEIGHT - fade_start)))
         for x in range(WIDTH):
-            pixels[x, y] = color
+            pixels[x, y] = (9, 14, 24, alpha)
+    image = Image.alpha_composite(image, overlay)
+    draw = ImageDraw.Draw(image)
+    brand_font = load_font(28, bold=True)
+    title_font = load_font(54, bold=True)
+    subtitle_font = load_font(29)
 
-    draw = ImageDraw.Draw(image, "RGBA")
-    # Decorative circles and border.
-    draw.ellipse((-180, -170, 360, 370), fill=(*accent, 24), outline=(*accent, 100), width=3)
-    draw.ellipse((790, 970, 1260, 1440), fill=(*accent, 20), outline=(*accent, 90), width=3)
-    draw.rounded_rectangle((54, 54, WIDTH - 54, HEIGHT - 54), radius=34,
-                           outline=(*accent, 190), width=3)
-    draw.rounded_rectangle((WIDTH // 2 - 80, 145, WIDTH // 2 + 80, 155), radius=5,
-                           fill=(*accent, 255))
-
-    brand_font = load_font(34, bold=True)
-    quote_font = load_font(68, bold=True)
-    sub_font = load_font(42)
-    footer_font = load_font(28)
-    draw.text((WIDTH // 2, 205), BRAND, font=brand_font, fill=(255, 238, 204, 255),
-              anchor="mm", stroke_width=0)
-    centered_multiline(draw, post["quote"], 380, quote_font, (255, 255, 255, 255),
-                       spacing=28, stroke_width=1, stroke_fill=(0, 0, 0, 35))
-    draw.line((WIDTH // 2 - 75, 770, WIDTH // 2 + 75, 770), fill=(*accent, 255), width=5)
-    centered_multiline(draw, post["subquote"], 825, sub_font, (255, 239, 220, 255), spacing=22)
-    draw.text((WIDTH // 2, 1170), "सोचिए • समझिए • आगे बढ़िए", font=footer_font,
-              fill=(255, 232, 195, 255), anchor="mm")
-    image.save(output_path, "JPEG", quality=92, optimize=True)
+    # Keep branding small and the amount of overlaid copy deliberately low.
+    draw.text((66, HEIGHT - 235), BRAND, font=brand_font, fill=(245, 204, 128, 255))
+    title = str(post.get("title", "")).strip()
+    # Wrap title to fit the available width; title only, not a large quote-card paragraph.
+    words = title.split()
+    lines, current = [], ""
+    for word in words:
+        trial = f"{current} {word}".strip()
+        if draw.textbbox((0, 0), trial, font=title_font)[2] <= WIDTH - 132:
+            current = trial
+        else:
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    title_text = "\\n".join(lines[:2])
+    draw.multiline_text((66, HEIGHT - 190), title_text, font=title_font,
+                        fill=(255, 255, 255, 255), spacing=8, stroke_width=0)
+    image.convert("RGB").save(output_path, "JPEG", quality=93, optimize=True)
 
 
 def generate_with_gemini(day):
